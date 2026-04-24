@@ -2,11 +2,14 @@
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+include = ["app*"]
+
 [project]
 name = "studysync-backend"
 version = "0.1.0"
 description = "StudySync — collaborative study platform backend"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
     {name = "Erardo Aldana Pessoa", email = "eap59@alu.ua.es"},
@@ -21,7 +24,7 @@ dependencies = [
     "python-jose[cryptography]>=3.3",
     "passlib[bcrypt]>=1.7",
     "redis>=5.0",
-    "livekit-server-sdk>=0.7",
+    "livekit-api>=0.7",
     "python-multipart>=0.0.9",
 ]
 
@@ -40,7 +43,7 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 88
-target-version = "py312"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]

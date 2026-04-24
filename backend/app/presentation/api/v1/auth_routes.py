@@ -1,6 +1,8 @@
 """Authentication routes — register, login, me, refresh."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -50,11 +52,11 @@ class AccessTokenResponse(BaseModel):
 # ── Dependency: get current user from token ───────────────────
 
 async def get_current_user(
-    authorization: str = "",
+    authorization: Optional[str] = Header(None, alias="Authorization"),
     session: AsyncSession = Depends(get_session),
 ):
     """Extract and verify JWT from Authorization header."""
-    if not authorization.startswith("Bearer "):
+    if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing token")
 
     token = authorization.removeprefix("Bearer ")
