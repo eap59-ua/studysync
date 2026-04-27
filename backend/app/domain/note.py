@@ -17,7 +17,10 @@ class Note:
     description: str = ""
     file_url: str = ""
     file_type: str = "pdf"  # pdf | image | markdown
+    file_size_bytes: int = 0
+    original_filename: str = ""
     created_at: datetime = field(default_factory=datetime.utcnow)
+    updated_at: datetime = field(default_factory=datetime.utcnow)
 
 
 @dataclass
