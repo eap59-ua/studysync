@@ -27,3 +27,4 @@ When the backend process restarts, all in-memory asyncio tasks die. The Pomodoro
 - [ ] Cooperative Pomodoro start (any member, not just owner)
 - [ ] Pomodoro history/logs persisted in PostgreSQL
 - [ ] Recovery on backend restart (see above)
+- [ ] Webhooks de LiveKit (`participant_joined`, `participant_left`) para tracking de presencia de audio independiente del WS — útil para detectar usuarios conectados al audio pero no al WS

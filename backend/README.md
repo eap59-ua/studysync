@@ -37,3 +37,18 @@ ruff check app/ tests/
 | GET | `/api/v1/auth/me` | Get current user |
 | POST | `/api/v1/auth/refresh` | Refresh access token |
 | GET | `/health` | Health check |
+
+## Configurar LiveKit
+
+El backend genera tokens para salas de videoconferencia usando LiveKit.
+
+1. Crea una cuenta en [LiveKit Cloud](https://cloud.livekit.io) (Free tier de 50 horas/mes).
+2. Crea un proyecto nuevo.
+3. En la pestaña de Settings / Keys, genera un API Key y un API Secret.
+4. Copia los valores y la URL (WebSocket) y actualiza el archivo `.env`:
+
+```env
+LIVEKIT_API_KEY=tu_api_key
+LIVEKIT_API_SECRET=tu_api_secret
+LIVEKIT_URL=wss://tu-proyecto.livekit.cloud
+```
