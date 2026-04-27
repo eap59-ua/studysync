@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from uuid import UUID
 
 from app.domain.user import User
+from app.domain.room import Room, RoomMember
 
 
 class UserRepository(ABC):
@@ -23,9 +24,43 @@ class UserRepository(ABC):
 
 
 class RoomRepository(ABC):
-    """Port for room persistence — to be implemented in Phase 2."""
+    """Port for room persistence."""
 
-    ...
+    @abstractmethod
+    async def create(self, room: Room) -> Room:
+        ...
+
+    @abstractmethod
+    async def get_by_id(self, room_id: UUID) -> Room | None:
+        ...
+
+    @abstractmethod
+    async def get_room_with_members(self, room_id: UUID) -> tuple[Room, list[User]] | None:
+        ...
+
+    @abstractmethod
+    async def list_public(self, skip: int = 0, limit: int = 20) -> list[Room]:
+        ...
+
+    @abstractmethod
+    async def add_member(self, room_member: RoomMember) -> None:
+        ...
+
+    @abstractmethod
+    async def remove_member(self, room_id: UUID, user_id: UUID) -> None:
+        ...
+
+    @abstractmethod
+    async def count_members(self, room_id: UUID) -> int:
+        ...
+
+    @abstractmethod
+    async def delete(self, room_id: UUID) -> None:
+        ...
+
+    @abstractmethod
+    async def update(self, room: Room) -> Room:
+        ...
 
 
 class NoteRepository(ABC):

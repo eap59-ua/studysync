@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.presentation.api.v1.auth_routes import router as auth_router
+from app.presentation.api.v1.room_routes import router as room_router
+from app.presentation.ws.rooms_ws import router as rooms_ws_router
 
 
 @asynccontextmanager
@@ -39,6 +41,8 @@ app.add_middleware(
 
 # ── Routers ───────────────────────────────────────────────────
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(room_router, prefix="/api/v1")
+app.include_router(rooms_ws_router)
 
 
 # ── Health check ──────────────────────────────────────────────

@@ -62,3 +62,13 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
     app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def auth_headers(client: AsyncClient) -> dict[str, str]:
+    """Register a test user and return headers with Bearer token."""
+    from tests.integration.test_auth import register_user, login_user
+    await register_user(client, email="roomuser@example.com")
+    resp = await login_user(client, email="roomuser@example.com")
+    token = resp.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
