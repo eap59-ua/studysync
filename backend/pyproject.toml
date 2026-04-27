@@ -26,6 +26,7 @@ dependencies = [
     "redis>=5.0",
     "livekit-api>=0.7",
     "python-multipart>=0.0.9",
+    "aiofiles>=23.2",
 ]
 
 [project.optional-dependencies]

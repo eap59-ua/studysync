@@ -67,3 +67,5 @@ coverage/
 *.log
 *.bak
 *.tmp
+uploads/
+backend/uploads/

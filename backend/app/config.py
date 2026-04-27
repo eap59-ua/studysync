@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     # ── App ───────────────────────────────────────────────────
     environment: str = "development"
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
+    uploads_dir: str = "./uploads"
 
     @property
     def cors_origins_list(self) -> list[str]:
