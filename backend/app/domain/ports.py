@@ -5,6 +5,8 @@ from uuid import UUID
 
 from app.domain.user import User
 from app.domain.room import Room, RoomMember
+from app.domain.note import Note, NoteReview
+from dataclasses import dataclass
 
 
 class UserRepository(ABC):
@@ -63,7 +65,63 @@ class RoomRepository(ABC):
         ...
 
 
-class NoteRepository(ABC):
-    """Port for note persistence — to be implemented in Phase 5."""
+class PaginatedNotes:
+    def __init__(self, items: list['NoteWithStats'], page: int, limit: int, total: int):
+        self.items = items
+        self.page = page
+        self.limit = limit
+        self.total = total
 
-    ...
+@dataclass
+class NoteWithStats:
+    note: 'Note'
+    owner: User
+    rating_avg: float
+    reviews_count: int
+
+@dataclass
+class NoteDetail:
+    note: 'Note'
+    owner: User
+    rating_avg: float
+    reviews_count: int
+    reviews: list[tuple['NoteReview', User]]
+
+class NoteRepository(ABC):
+    """Port for note persistence."""
+
+    @abstractmethod
+    async def save(self, note: 'Note') -> 'Note':
+        ...
+
+    @abstractmethod
+    async def get_by_id(self, note_id: UUID) -> 'Note' | None:
+        ...
+
+    @abstractmethod
+    async def delete(self, note_id: UUID) -> None:
+        ...
+
+    @abstractmethod
+    async def list_notes(
+        self,
+        *,
+        subject: str | None = None,
+        room_id: UUID | None = None,
+        sort: str = "created_desc",
+        skip: int = 0,
+        limit: int = 20,
+    ) -> tuple[list[NoteWithStats], int]:
+        ...
+
+    @abstractmethod
+    async def get_note_with_reviews(self, note_id: UUID) -> NoteDetail | None:
+        ...
+
+    @abstractmethod
+    async def add_review(self, review: 'NoteReview') -> 'NoteReview':
+        ...
+
+    @abstractmethod
+    async def get_review_by_user(self, note_id: UUID, user_id: UUID) -> 'NoteReview' | None:
+        ...
