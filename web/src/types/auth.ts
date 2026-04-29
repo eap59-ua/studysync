@@ -1,35 +1,10 @@
-/** Manual auth types — these mirror the backend responses. */
+import type { components } from "./api";
 
-export interface User {
-  id: string;
-  email: string;
-  display_name: string;
-  is_active: boolean;
-}
-
-export interface LoginResponse {
-  access_token: string;
-  refresh_token: string;
-  user: User;
-}
-
-export interface RegisterResponse {
-  id: string;
-  email: string;
-  display_name: string;
-  is_active: boolean;
-}
-
-export interface MeResponse {
-  id: string;
-  email: string;
-  display_name: string;
-  is_active: boolean;
-}
-
-export interface RefreshResponse {
-  access_token: string;
-}
+export type User = components["schemas"]["app__presentation__api__v1__auth_routes__UserResponse"];
+export type LoginResponse = components["schemas"]["TokenResponse"];
+export type RegisterResponse = components["schemas"]["app__presentation__api__v1__auth_routes__UserResponse"];
+export type MeResponse = components["schemas"]["app__presentation__api__v1__auth_routes__UserResponse"];
+export type RefreshResponse = components["schemas"]["AccessTokenResponse"];
 
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
