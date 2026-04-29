@@ -10,7 +10,7 @@ export interface User {
 export interface LoginResponse {
   access_token: string;
   refresh_token: string;
-  token_type: string;
+  user: User;
 }
 
 export interface RegisterResponse {
@@ -29,7 +29,6 @@ export interface MeResponse {
 
 export interface RefreshResponse {
   access_token: string;
-  token_type: string;
 }
 
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated";

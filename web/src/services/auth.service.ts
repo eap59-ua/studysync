@@ -19,14 +19,7 @@ export interface RegisterPayload {
 
 export const authService = {
   login: async (payload: LoginPayload): Promise<LoginResponse> => {
-    // Backend expects form-encoded for OAuth2PasswordRequestForm
-    const params = new URLSearchParams();
-    params.append("username", payload.email);
-    params.append("password", payload.password);
-
-    const { data } = await http.post<LoginResponse>("/api/v1/auth/login", params, {
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    });
+    const { data } = await http.post<LoginResponse>("/api/v1/auth/login", payload);
     return data;
   },
 

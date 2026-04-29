@@ -66,13 +66,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     const response = await authService.login({ email, password });
 
-    // After login, fetch user info
-    const me = await authService.me();
     const user: User = {
-      id: me.id,
-      email: me.email,
-      display_name: me.display_name,
-      is_active: me.is_active,
+      id: response.user.id,
+      email: response.user.email,
+      display_name: response.user.display_name,
+      is_active: response.user.is_active,
     };
 
     authStorage.set({
