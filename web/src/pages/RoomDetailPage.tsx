@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { roomsService, type RoomDetail } from "../services/rooms.service";
 import { MemberList } from "../components/rooms/MemberList";
+import { RoomVideoGrid } from "../components/rooms/RoomVideoGrid";
 import { Button } from "../components/ui/Button";
 import { useAuth } from "../hooks/useAuth";
 import { useRoomPresence } from "../hooks/useRoomPresence";
@@ -104,9 +105,8 @@ export function RoomDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-3 bg-gray-100 rounded-xl border border-gray-200 min-h-[60vh] flex items-center justify-center">
-          {/* Placeholder for VideoGrid */}
-          <p className="text-gray-500">VideoGrid se añadirá aquí</p>
+        <div className="lg:col-span-3 bg-black rounded-xl border border-gray-800 min-h-[60vh] flex items-center justify-center overflow-hidden">
+          <RoomVideoGrid roomId={id || ""} />
         </div>
 
         <div className="lg:col-span-1">
