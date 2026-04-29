@@ -53,29 +53,38 @@ class RoomMemberModel(Base):
     user = relationship("UserModel", back_populates="room_memberships")
 
 
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, Uuid, func, UniqueConstraint, CheckConstraint
+
 class NoteModel(Base):
     __tablename__ = "notes"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    owner_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id"), nullable=False)
-    room_id: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid, ForeignKey("rooms.id"), nullable=True)
+    owner_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    room_id: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid, ForeignKey("rooms.id", ondelete="SET NULL"), nullable=True)
     subject: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(300), nullable=False)
     description: Mapped[str] = mapped_column(Text, default="")
     file_url: Mapped[str] = mapped_column(String(500), default="")
     file_type: Mapped[str] = mapped_column(String(20), default="pdf")
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    file_size_bytes: Mapped[int] = mapped_column(Integer, default=0)
+    original_filename: Mapped[str] = mapped_column(String(300), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
     # Relationships
-    reviews = relationship("NoteReviewModel", back_populates="note", lazy="selectin")
+    reviews = relationship("NoteReviewModel", back_populates="note", lazy="selectin", cascade="all, delete-orphan")
 
 
 class NoteReviewModel(Base):
     __tablename__ = "note_reviews"
+    __table_args__ = (
+        UniqueConstraint("note_id", "reviewer_id", name="uq_note_reviewer"),
+        CheckConstraint("rating BETWEEN 1 AND 5", name="chk_rating_range"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    note_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("notes.id"), nullable=False)
-    reviewer_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id"), nullable=False)
+    note_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("notes.id", ondelete="CASCADE"), nullable=False, index=True)
+    reviewer_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     rating: Mapped[int] = mapped_column(Integer, nullable=False)
     comment: Mapped[str] = mapped_column(String(500), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

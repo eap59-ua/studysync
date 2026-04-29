@@ -1,4 +1,5 @@
 """Domain ports — abstract interfaces for infrastructure adapters."""
+from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from uuid import UUID
