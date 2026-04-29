@@ -4,6 +4,7 @@ import { roomsService, type RoomDetail } from "../services/rooms.service";
 import { MemberList } from "../components/rooms/MemberList";
 import { Button } from "../components/ui/Button";
 import { useAuth } from "../hooks/useAuth";
+import { useRoomPresence } from "../hooks/useRoomPresence";
 
 export function RoomDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -48,14 +49,15 @@ export function RoomDetailPage() {
     };
   }, [id, user]);
 
+  const { status: wsStatus, members: activeMembers } = useRoomPresence(id || "");
+
   const handleLeave = async () => {
     if (!id) return;
     try {
       await roomsService.leave(id);
       navigate("/rooms");
-    } catch (err) {
-      console.error("Error al salir de la sala", err);
-      // Even if it fails (e.g. backend error), we should probably let them leave the UI
+    } catch {
+      console.error("Error al salir de la sala");
       navigate("/rooms");
     }
   };
@@ -82,11 +84,23 @@ export function RoomDetailPage() {
     );
   }
 
+  // Combinar los miembros base con la presencia WS, asumiendo que el WS tiene la fuente de verdad actualizada si activeMembers > 0
+  const displayMembers = activeMembers.length > 0 ? activeMembers : (roomDetail.members || []);
+
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">{roomDetail.name}</h1>
-        <p className="mt-2 text-lg text-gray-600">{roomDetail.subject}</p>
+      <div className="mb-8 flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">{roomDetail.name}</h1>
+          <p className="mt-2 text-lg text-gray-600">{roomDetail.subject}</p>
+        </div>
+        <div className="flex items-center space-x-2">
+          <span className="text-sm font-medium text-gray-500">Estado:</span>
+          {wsStatus === "open" && <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Conectado</span>}
+          {wsStatus === "reconnecting" && <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Reconectando...</span>}
+          {wsStatus === "connecting" && <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Conectando...</span>}
+          {wsStatus === "closed" && <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Desconectado</span>}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -96,7 +110,7 @@ export function RoomDetailPage() {
         </div>
 
         <div className="lg:col-span-1">
-          <MemberList members={roomDetail.members || []} />
+          <MemberList members={displayMembers} />
         </div>
       </div>
 
