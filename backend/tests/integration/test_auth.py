@@ -3,29 +3,36 @@
 import pytest
 from httpx import AsyncClient
 
-
 # ── Helper ────────────────────────────────────────────────────
+
 
 async def register_user(client: AsyncClient, email: str = "test@example.com") -> dict:
     """Helper to register a user and return the response JSON."""
-    resp = await client.post("/api/v1/auth/register", json={
-        "email": email,
-        "password": "securepass123",
-        "display_name": "Test User",
-    })
+    resp = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": email,
+            "password": "securepass123",
+            "display_name": "Test User",
+        },
+    )
     return resp
 
 
 async def login_user(client: AsyncClient, email: str = "test@example.com") -> dict:
     """Helper to login and return the response JSON."""
-    resp = await client.post("/api/v1/auth/login", json={
-        "email": email,
-        "password": "securepass123",
-    })
+    resp = await client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": email,
+            "password": "securepass123",
+        },
+    )
     return resp
 
 
 # ── Registration Tests ────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_register_ok(client: AsyncClient):
@@ -54,15 +61,19 @@ async def test_register_duplicate_email(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_register_password_too_short(client: AsyncClient):
     """Password shorter than 8 chars returns 422."""
-    resp = await client.post("/api/v1/auth/register", json={
-        "email": "short@example.com",
-        "password": "123",
-        "display_name": "Short Pass",
-    })
+    resp = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "short@example.com",
+            "password": "123",
+            "display_name": "Short Pass",
+        },
+    )
     assert resp.status_code == 422
 
 
 # ── Login Tests ───────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_login_ok(client: AsyncClient):
@@ -80,24 +91,31 @@ async def test_login_ok(client: AsyncClient):
 async def test_login_wrong_password(client: AsyncClient):
     """Wrong password returns 401."""
     await register_user(client)
-    resp = await client.post("/api/v1/auth/login", json={
-        "email": "test@example.com",
-        "password": "wrongpassword",
-    })
+    resp = await client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "test@example.com",
+            "password": "wrongpassword",
+        },
+    )
     assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_login_nonexistent_user(client: AsyncClient):
     """Login with non-existent email returns 401."""
-    resp = await client.post("/api/v1/auth/login", json={
-        "email": "nobody@example.com",
-        "password": "doesntmatter",
-    })
+    resp = await client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "nobody@example.com",
+            "password": "doesntmatter",
+        },
+    )
     assert resp.status_code == 401
 
 
 # ── /me Endpoint Tests ────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_me_with_valid_token(client: AsyncClient):
@@ -135,6 +153,7 @@ async def test_me_with_invalid_token(client: AsyncClient):
 
 # ── Refresh Token Tests ──────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_refresh_with_valid_token(client: AsyncClient):
     """POST /refresh with valid refresh token returns new access token."""
@@ -142,9 +161,12 @@ async def test_refresh_with_valid_token(client: AsyncClient):
     login_resp = await login_user(client)
     refresh_token = login_resp.json()["refresh_token"]
 
-    resp = await client.post("/api/v1/auth/refresh", json={
-        "refresh_token": refresh_token,
-    })
+    resp = await client.post(
+        "/api/v1/auth/refresh",
+        json={
+            "refresh_token": refresh_token,
+        },
+    )
     assert resp.status_code == 200
     assert "access_token" in resp.json()
 
@@ -152,13 +174,17 @@ async def test_refresh_with_valid_token(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_refresh_with_invalid_token(client: AsyncClient):
     """POST /refresh with invalid token returns 401."""
-    resp = await client.post("/api/v1/auth/refresh", json={
-        "refresh_token": "invalid.refresh.token",
-    })
+    resp = await client.post(
+        "/api/v1/auth/refresh",
+        json={
+            "refresh_token": "invalid.refresh.token",
+        },
+    )
     assert resp.status_code == 401
 
 
 # ── Hashing de contraseñas ────────────────────────────────────
+
 
 def test_new_passwords_are_hashed_with_argon2id():
     """Las contraseñas nuevas usan Argon2id, no bcrypt."""

@@ -15,7 +15,9 @@ class Settings(BaseSettings):
     )
 
     # ── Database ──────────────────────────────────────────────
-    database_url: str = "postgresql+asyncpg://studysync:studysync_dev@localhost:5432/studysync"
+    database_url: str = (
+        "postgresql+asyncpg://studysync:studysync_dev@localhost:5432/studysync"
+    )
 
     # ── Redis ─────────────────────────────────────────────────
     redis_url: str = "redis://localhost:6379/0"

@@ -1,16 +1,18 @@
-"""PomodoroService — server-authoritative Pomodoro with Redis state and asyncio rotation."""
+"""PomodoroService — Pomodoro server-authoritative.
+
+El estado vive en Redis y la rotación de fases la lleva una tarea asyncio.
+"""
 
 import asyncio
 import json
 import logging
-from datetime import datetime, timezone
-from typing import Awaitable, Callable, Optional
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
 from uuid import UUID
 
 import redis.asyncio as aioredis
 
 from app.domain.pomodoro import (
-    PHASES_PER_CYCLE,
     PomodoroState,
     is_focus,
     next_phase_index,
@@ -34,7 +36,7 @@ class PomodoroService:
         room_repo: RoomRepository,
         broadcast_fn: Callable[[UUID, dict], Awaitable[None]],
         get_connected_user_ids: Callable[[UUID], list[UUID]],
-        now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+        now: Callable[[], datetime] = lambda: datetime.now(UTC),
         _sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ):
         self._redis = redis_client
@@ -74,10 +76,13 @@ class PomodoroService:
         self._schedule_rotation(room_id, state.duration_seconds)
 
         # Broadcast
-        await self._broadcast(room_id, {
-            "type": "pomodoro.state",
-            "state": state.to_dict(),
-        })
+        await self._broadcast(
+            room_id,
+            {
+                "type": "pomodoro.state",
+                "state": state.to_dict(),
+            },
+        )
 
         logger.info("pomodoro.started room_id=%s phase=focus", room_id)
         return state
@@ -98,7 +103,7 @@ class PomodoroService:
         await self._broadcast(room_id, {"type": "pomodoro.stopped"})
         logger.info("pomodoro.stopped room_id=%s", room_id)
 
-    async def get_state(self, room_id: UUID) -> Optional[PomodoroState]:
+    async def get_state(self, room_id: UUID) -> PomodoroState | None:
         """Read current Pomodoro state from Redis."""
         key = self._redis_key(room_id)
         raw = await self._redis.get(key)
@@ -127,7 +132,8 @@ class PomodoroService:
                 await self._redis.incr(counter_key)
             logger.info(
                 "pomodoro.focus_completed room_id=%s users_credited=%d",
-                room_id, len(connected_ids),
+                room_id,
+                len(connected_ids),
             )
 
         # Calculate next phase
@@ -152,20 +158,27 @@ class PomodoroService:
         self._schedule_rotation(room_id, new_duration)
 
         # Broadcast phase change
-        await self._broadcast(room_id, {
-            "type": "pomodoro.phase_change",
-            "from_phase": from_phase,
-            "to_phase": new_phase,
-            "state": new_state.to_dict(),
-        })
+        await self._broadcast(
+            room_id,
+            {
+                "type": "pomodoro.phase_change",
+                "from_phase": from_phase,
+                "to_phase": new_phase,
+                "state": new_state.to_dict(),
+            },
+        )
 
         logger.info(
             "pomodoro.phase_change room_id=%s from=%s to=%s index=%d",
-            room_id, from_phase, new_phase, new_index,
+            room_id,
+            from_phase,
+            new_phase,
+            new_index,
         )
 
     def _schedule_rotation(self, room_id: UUID, delay_seconds: float) -> None:
         """Schedule an asyncio task that rotates after delay_seconds."""
+
         async def _wait_and_rotate():
             await self._sleep(delay_seconds)
             await self._rotate(room_id)

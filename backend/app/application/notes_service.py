@@ -14,7 +14,7 @@ from app.domain.notes_errors import (
     NotNoteOwnerError,
     UnsupportedFileTypeError,
 )
-from app.domain.ports import NoteRepository, PaginatedNotes, NoteWithStats, NoteDetail
+from app.domain.ports import NoteDetail, NoteRepository, PaginatedNotes
 
 
 class NotesService:
@@ -53,8 +53,10 @@ class NotesService:
                 # Only check the first chunk to be fast
                 file_bytes[:4096].decode("utf-8")
             except UnicodeDecodeError:
-                raise UnsupportedFileTypeError("Text file contains invalid UTF-8 characters.")
-        # webp magic bytes starts with RIFF and WEBP, omitting strict check for simplicity here.
+                raise UnsupportedFileTypeError(
+                    "Text file contains invalid UTF-8 characters."
+                )
+        # webp: empieza por RIFF + WEBP; se omite la comprobación estricta.
 
     def _map_mime_to_file_type(self, mime_type: str) -> str:
         if "pdf" in mime_type:
@@ -78,7 +80,9 @@ class NotesService:
         content_type: str,
     ) -> Note:
         if len(file_bytes) > self._max_file_bytes:
-            raise FileTooLargeError(f"File exceeds maximum size of {self._max_file_bytes} bytes.")
+            raise FileTooLargeError(
+                f"File exceeds maximum size of {self._max_file_bytes} bytes."
+            )
 
         if content_type not in self._allowed_mime_types:
             raise UnsupportedFileTypeError(f"MIME type {content_type} is not allowed.")
@@ -102,15 +106,11 @@ class NotesService:
             file_size_bytes=saved_file.size_bytes,
             original_filename=original_filename,
         )
-        
-        # We store the storage_key in the file_url temporarily, but ideally we should have a storage_key column.
-        # Actually, let's keep the storage_key inside the URL if it's LocalDisk, but we need it to delete.
-        # Wait, the DB model doesn't have storage_key. The file_url IS the key or contains it?
-        # Let's extract storage_key from url on delete, or we can just pass the URL if it ends with storage_key.
-        # The prompt says: "Crea Note con file_url y storage_key" -> wait, the Note model doesn't have storage_key.
-        # The prompt says "Note: id, owner_id, room_id, subject, title, description, file_url, file_type, file_size_bytes, original_filename, created_at, updated_at".
-        # We can extract it from the file_url by taking the last part.
 
+        # DEUDA: Note no tiene columna storage_key, así que al borrar se
+        # reconstruye a partir del último segmento de file_url. Funciona con
+        # LocalDiskStorage pero acopla el servicio al formato de la URL: un
+        # adapter S3 con URLs firmadas rompería delete(). Ver BACKLOG.md.
         return await self._note_repo.save(note)
 
     async def list_notes(
@@ -149,7 +149,7 @@ class NotesService:
 
         # Extract storage_key from file_url (assumes it's the last part after /)
         storage_key = note.file_url.split("/")[-1]
-        
+
         await self._storage.delete(storage_key)
         await self._note_repo.delete(note_id)
 

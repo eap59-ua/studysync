@@ -1,6 +1,5 @@
 """WebSocket endpoints for room presence and Pomodoro commands."""
 
-import asyncio
 import json
 import logging
 from uuid import UUID
@@ -160,11 +159,13 @@ async def room_websocket(
         for u in manager.get_connected_users(room_id)
     ]
 
-    await websocket.send_json({
-        "type": "presence_state",
-        "members": active_users,
-        "count": current_count,
-    })
+    await websocket.send_json(
+        {
+            "type": "presence_state",
+            "members": active_users,
+            "count": current_count,
+        }
+    )
 
     # Broadcast join to OTHER users (the joining user already got presence_state)
     await manager.broadcast_to_room_except(
@@ -189,10 +190,12 @@ async def room_websocket(
     # Send current pomodoro state if active
     pom_state = await pomodoro_service.get_state(room_id)
     if pom_state:
-        await websocket.send_json({
-            "type": "pomodoro.state",
-            "state": pom_state.to_dict(),
-        })
+        await websocket.send_json(
+            {
+                "type": "pomodoro.state",
+                "state": pom_state.to_dict(),
+            }
+        )
 
     # 5. Message loop
     try:
@@ -209,29 +212,37 @@ async def room_websocket(
                     try:
                         await pomodoro_service.start(room_id, user.id)
                     except PermissionError as e:
-                        await websocket.send_json({
-                            "type": "error",
-                            "message": str(e),
-                        })
+                        await websocket.send_json(
+                            {
+                                "type": "error",
+                                "message": str(e),
+                            }
+                        )
                     except ValueError as e:
-                        await websocket.send_json({
-                            "type": "error",
-                            "message": str(e),
-                        })
+                        await websocket.send_json(
+                            {
+                                "type": "error",
+                                "message": str(e),
+                            }
+                        )
 
                 elif msg_type == "pomodoro.stop":
                     try:
                         await pomodoro_service.stop(room_id, user.id)
                     except PermissionError as e:
-                        await websocket.send_json({
-                            "type": "error",
-                            "message": str(e),
-                        })
+                        await websocket.send_json(
+                            {
+                                "type": "error",
+                                "message": str(e),
+                            }
+                        )
                     except ValueError as e:
-                        await websocket.send_json({
-                            "type": "error",
-                            "message": str(e),
-                        })
+                        await websocket.send_json(
+                            {
+                                "type": "error",
+                                "message": str(e),
+                            }
+                        )
 
                 # Unknown messages silently ignored
             except json.JSONDecodeError:
@@ -248,7 +259,7 @@ async def room_websocket(
                     "type": "user_left",
                     "user": user_data,
                     "count": manager.count_connected_users(room_id),
-                }
+                },
             )
 
     await redis_client.aclose()

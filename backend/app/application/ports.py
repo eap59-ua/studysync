@@ -1,8 +1,9 @@
 """Application ports."""
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import AsyncIterator
+
 
 @dataclass
 class SavedFile:
@@ -10,6 +11,7 @@ class SavedFile:
     size_bytes: int
     content_type: str
     storage_key: str
+
 
 class FileStoragePort(ABC):
     @abstractmethod

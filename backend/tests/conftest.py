@@ -15,7 +15,9 @@ from app.main import app
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
 engine = create_async_engine(TEST_DATABASE_URL, echo=False)
-TestSessionFactory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+TestSessionFactory = async_sessionmaker(
+    engine, class_=AsyncSession, expire_on_commit=False
+)
 
 
 @pytest.fixture(scope="session")
@@ -67,7 +69,8 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
 @pytest_asyncio.fixture
 async def auth_headers(client: AsyncClient) -> dict[str, str]:
     """Register a test user and return headers with Bearer token."""
-    from tests.integration.test_auth import register_user, login_user
+    from tests.integration.test_auth import login_user, register_user
+
     await register_user(client, email="roomuser@example.com")
     resp = await login_user(client, email="roomuser@example.com")
     token = resp.json()["access_token"]

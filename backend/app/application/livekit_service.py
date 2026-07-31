@@ -33,13 +33,13 @@ class LiveKitService:
             raise ValueError("Room not found")
 
         room, members = room_with_members
-        
+
         is_member = any(m.id == requesting_user_id for m in members)
         if not is_member:
             raise PermissionError("User is not a member of this room")
 
         room_name = livekit_room_name(room_id)
-        
+
         token = self._client.generate_join_token(
             identity=str(requesting_user_id),
             display_name=requesting_user_display_name,

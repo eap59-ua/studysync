@@ -1,16 +1,14 @@
 """Pomodoro session domain entity — server-authoritative timer logic."""
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Optional
-from uuid import UUID, uuid4
-
+from dataclasses import dataclass
+from datetime import datetime
+from uuid import UUID
 
 # ── Constants ─────────────────────────────────────────────────
-FOCUS_SECONDS = 25 * 60          # 25 minutes
-SHORT_BREAK_SECONDS = 5 * 60     # 5 minutes
-LONG_BREAK_SECONDS = 15 * 60     # 15 minutes
-PHASES_PER_CYCLE = 8             # 4 focus + 3 short break + 1 long break
+FOCUS_SECONDS = 25 * 60  # 25 minutes
+SHORT_BREAK_SECONDS = 5 * 60  # 5 minutes
+LONG_BREAK_SECONDS = 15 * 60  # 15 minutes
+PHASES_PER_CYCLE = 8  # 4 focus + 3 short break + 1 long break
 
 
 def phase_name(index: int) -> str:

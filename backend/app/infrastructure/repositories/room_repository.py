@@ -1,6 +1,5 @@
 """SQLAlchemy implementation of the RoomRepository port."""
 
-from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -44,13 +43,15 @@ class SqlAlchemyRoomRepository(RoomRepository):
         await self.session.commit()
         return self._to_domain(model)
 
-    async def get_by_id(self, room_id: UUID) -> Optional[Room]:
+    async def get_by_id(self, room_id: UUID) -> Room | None:
         model = await self.session.get(RoomModel, room_id)
         if not model:
             return None
         return self._to_domain(model)
 
-    async def get_room_with_members(self, room_id: UUID) -> Optional[tuple[Room, list[User]]]:
+    async def get_room_with_members(
+        self, room_id: UUID
+    ) -> tuple[Room, list[User]] | None:
         stmt = (
             select(RoomModel)
             .where(RoomModel.id == room_id)
@@ -60,7 +61,7 @@ class SqlAlchemyRoomRepository(RoomRepository):
         model = result.scalar_one_or_none()
         if not model:
             return None
-        
+
         room = self._to_domain(model)
         users = [
             User(
@@ -76,7 +77,12 @@ class SqlAlchemyRoomRepository(RoomRepository):
         return room, users
 
     async def list_public(self, skip: int = 0, limit: int = 20) -> list[Room]:
-        stmt = select(RoomModel).where(RoomModel.is_public == True).offset(skip).limit(limit)
+        stmt = (
+            select(RoomModel)
+            .where(RoomModel.is_public.is_(True))
+            .offset(skip)
+            .limit(limit)
+        )
         result = await self.session.execute(stmt)
         return [self._to_domain(m) for m in result.scalars().all()]
 
@@ -96,7 +102,11 @@ class SqlAlchemyRoomRepository(RoomRepository):
             await self.session.commit()
 
     async def count_members(self, room_id: UUID) -> int:
-        stmt = select(func.count()).select_from(RoomMemberModel).where(RoomMemberModel.room_id == room_id)
+        stmt = (
+            select(func.count())
+            .select_from(RoomMemberModel)
+            .where(RoomMemberModel.room_id == room_id)
+        )
         result = await self.session.execute(stmt)
         return result.scalar_one()
 

@@ -1,6 +1,5 @@
 """REST API routes for Room management."""
 
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -17,6 +16,7 @@ router = APIRouter(prefix="/rooms", tags=["Rooms"])
 
 
 # ── Request / Response schemas ────────────────────────────────
+
 
 class RoomCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
@@ -47,6 +47,7 @@ def get_room_service(session: AsyncSession = Depends(get_session)) -> RoomServic
 
 # ── Routes ────────────────────────────────────────────────────
 
+
 @router.post("", response_model=RoomResponse, status_code=status.HTTP_201_CREATED)
 async def create_room(
     body: RoomCreate,
@@ -63,7 +64,9 @@ async def create_room(
         )
         return RoomResponse.model_validate(room)
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)
+        )
 
 
 @router.get("/public", response_model=list[RoomResponse])
@@ -85,10 +88,12 @@ async def get_room(
 ):
     result = await service.get_room_with_members(room_id)
     if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
-    
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Room not found"
+        )
+
     room, members = result
-    
+
     return RoomWithMembersResponse(
         id=room.id,
         name=room.name,
@@ -98,7 +103,10 @@ async def get_room(
         is_public=room.is_public,
         members=[
             UserResponse(
-                id=str(u.id), email=u.email, display_name=u.display_name, is_active=u.is_active
+                id=str(u.id),
+                email=u.email,
+                display_name=u.display_name,
+                is_active=u.is_active,
             )
             for u in members
         ],

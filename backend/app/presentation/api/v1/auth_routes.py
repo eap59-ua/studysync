@@ -1,7 +1,5 @@
 """Authentication routes — register, login, me, refresh."""
 
-from typing import Optional
-
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +12,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 # ── Request / Response schemas ────────────────────────────────
+
 
 class RegisterRequest(BaseModel):
     email: EmailStr
@@ -51,13 +50,16 @@ class AccessTokenResponse(BaseModel):
 
 # ── Dependency: get current user from token ───────────────────
 
+
 async def get_current_user(
-    authorization: Optional[str] = Header(None, alias="Authorization"),
+    authorization: str | None = Header(None, alias="Authorization"),
     session: AsyncSession = Depends(get_session),
 ):
     """Extract and verify JWT from Authorization header."""
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing token"
+        )
 
     token = authorization.removeprefix("Bearer ")
     repo = SqlAlchemyUserRepository(session)
@@ -66,22 +68,34 @@ async def get_current_user(
     try:
         return await service.verify_token(token)
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        )
 
 
 # ── Routes ────────────────────────────────────────────────────
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
+)
 async def register(body: RegisterRequest, session: AsyncSession = Depends(get_session)):
     repo = SqlAlchemyUserRepository(session)
     service = AuthService(repo)
     try:
         user = await service.register(body.email, body.password, body.display_name)
-        return UserResponse(id=str(user.id), email=user.email, display_name=user.display_name, is_active=user.is_active)
+        return UserResponse(
+            id=str(user.id),
+            email=user.email,
+            display_name=user.display_name,
+            is_active=user.is_active,
+        )
     except ValueError as e:
         if "already registered" in str(e):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)
+        )
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -94,10 +108,17 @@ async def login(body: LoginRequest, session: AsyncSession = Depends(get_session)
         return TokenResponse(
             access_token=result["access_token"],
             refresh_token=result["refresh_token"],
-            user=UserResponse(id=str(user.id), email=user.email, display_name=user.display_name, is_active=user.is_active),
+            user=UserResponse(
+                id=str(user.id),
+                email=user.email,
+                display_name=user.display_name,
+                is_active=user.is_active,
+            ),
         )
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+        )
 
 
 @router.get("/me", response_model=UserResponse)
@@ -118,4 +139,6 @@ async def refresh(body: RefreshRequest, session: AsyncSession = Depends(get_sess
         result = await service.refresh(body.refresh_token)
         return AccessTokenResponse(access_token=result["access_token"])
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
+        )

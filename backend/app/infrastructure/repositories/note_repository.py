@@ -1,14 +1,12 @@
 """SQLAlchemy implementation of the NoteRepository port."""
 
-from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.domain.note import Note, NoteReview
-from app.domain.ports import NoteRepository, NoteWithStats, NoteDetail
+from app.domain.ports import NoteDetail, NoteRepository, NoteWithStats
 from app.domain.user import User
 from app.infrastructure.models import NoteModel, NoteReviewModel, UserModel
 
@@ -88,7 +86,7 @@ class SqlAlchemyNoteRepository(NoteRepository):
         await self.session.commit()
         return self._to_domain_note(model)
 
-    async def get_by_id(self, note_id: UUID) -> Optional[Note]:
+    async def get_by_id(self, note_id: UUID) -> Note | None:
         model = await self.session.get(NoteModel, note_id)
         if not model:
             return None
@@ -109,13 +107,13 @@ class SqlAlchemyNoteRepository(NoteRepository):
         skip: int = 0,
         limit: int = 20,
     ) -> tuple[list[NoteWithStats], int]:
-        
+
         # Subquery for ratings
         reviews_sq = (
             select(
                 NoteReviewModel.note_id,
                 func.avg(NoteReviewModel.rating).label("rating_avg"),
-                func.count(NoteReviewModel.id).label("reviews_count")
+                func.count(NoteReviewModel.id).label("reviews_count"),
             )
             .group_by(NoteReviewModel.note_id)
             .subquery()
@@ -123,7 +121,12 @@ class SqlAlchemyNoteRepository(NoteRepository):
 
         # Base query joining user and subquery
         stmt = (
-            select(NoteModel, UserModel, reviews_sq.c.rating_avg, reviews_sq.c.reviews_count)
+            select(
+                NoteModel,
+                UserModel,
+                reviews_sq.c.rating_avg,
+                reviews_sq.c.reviews_count,
+            )
             .join(UserModel, NoteModel.owner_id == UserModel.id)
             .outerjoin(reviews_sq, NoteModel.id == reviews_sq.c.note_id)
         )
@@ -137,7 +140,10 @@ class SqlAlchemyNoteRepository(NoteRepository):
         # Sorting
         if sort == "rating_desc":
             # Treat NULLs as 0 for sorting
-            stmt = stmt.order_by(func.coalesce(reviews_sq.c.rating_avg, 0).desc(), NoteModel.created_at.desc())
+            stmt = stmt.order_by(
+                func.coalesce(reviews_sq.c.rating_avg, 0).desc(),
+                NoteModel.created_at.desc(),
+            )
         elif sort == "created_asc":
             stmt = stmt.order_by(NoteModel.created_at.asc())
         else:  # default created_desc
@@ -155,16 +161,18 @@ class SqlAlchemyNoteRepository(NoteRepository):
 
         items = []
         for note_model, user_model, avg_rating, count in rows:
-            items.append(NoteWithStats(
-                note=self._to_domain_note(note_model),
-                owner=self._to_domain_user(user_model),
-                rating_avg=float(avg_rating) if avg_rating is not None else 0.0,
-                reviews_count=count or 0,
-            ))
+            items.append(
+                NoteWithStats(
+                    note=self._to_domain_note(note_model),
+                    owner=self._to_domain_user(user_model),
+                    rating_avg=float(avg_rating) if avg_rating is not None else 0.0,
+                    reviews_count=count or 0,
+                )
+            )
 
         return items, total
 
-    async def get_note_with_reviews(self, note_id: UUID) -> Optional[NoteDetail]:
+    async def get_note_with_reviews(self, note_id: UUID) -> NoteDetail | None:
         # Query note and owner
         note_stmt = (
             select(NoteModel, UserModel)
@@ -175,7 +183,7 @@ class SqlAlchemyNoteRepository(NoteRepository):
         row = result.first()
         if not row:
             return None
-            
+
         note_model, owner_model = row
 
         # Query reviews and their authors
@@ -192,11 +200,13 @@ class SqlAlchemyNoteRepository(NoteRepository):
         total_rating = 0
         for review_model, reviewer_model in reviews_rows:
             total_rating += review_model.rating
-            reviews_list.append((
-                self._to_domain_review(review_model),
-                self._to_domain_user(reviewer_model)
-            ))
-            
+            reviews_list.append(
+                (
+                    self._to_domain_review(review_model),
+                    self._to_domain_user(reviewer_model),
+                )
+            )
+
         count = len(reviews_list)
         avg = total_rating / count if count > 0 else 0.0
 
@@ -205,7 +215,7 @@ class SqlAlchemyNoteRepository(NoteRepository):
             owner=self._to_domain_user(owner_model),
             rating_avg=avg,
             reviews_count=count,
-            reviews=reviews_list
+            reviews=reviews_list,
         )
 
     async def add_review(self, review: NoteReview) -> NoteReview:
@@ -226,10 +236,11 @@ class SqlAlchemyNoteRepository(NoteRepository):
         await self.session.commit()
         return self._to_domain_review(model)
 
-    async def get_review_by_user(self, note_id: UUID, user_id: UUID) -> Optional[NoteReview]:
+    async def get_review_by_user(
+        self, note_id: UUID, user_id: UUID
+    ) -> NoteReview | None:
         stmt = select(NoteReviewModel).where(
-            NoteReviewModel.note_id == note_id,
-            NoteReviewModel.reviewer_id == user_id
+            NoteReviewModel.note_id == note_id, NoteReviewModel.reviewer_id == user_id
         )
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()

@@ -1,6 +1,6 @@
 """Authentication service — handles registration, login, and token management."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from jose import JWTError, jwt
@@ -78,7 +78,9 @@ class AuthService:
     async def refresh(self, refresh_token: str) -> dict:
         """Generate new access token from a valid refresh token."""
         try:
-            payload = jwt.decode(refresh_token, self._settings.jwt_secret, algorithms=["HS256"])
+            payload = jwt.decode(
+                refresh_token, self._settings.jwt_secret, algorithms=["HS256"]
+            )
             if payload.get("type") != "refresh":
                 raise ValueError("Not a refresh token")
             user_id = UUID(payload["sub"])
@@ -97,6 +99,6 @@ class AuthService:
 
     def _create_token(self, data: dict, expires_delta: timedelta) -> str:
         to_encode = data.copy()
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.now(UTC) + expires_delta
         to_encode.update({"exp": expire})
         return jwt.encode(to_encode, self._settings.jwt_secret, algorithm="HS256")

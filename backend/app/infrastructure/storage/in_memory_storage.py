@@ -1,7 +1,7 @@
 """In-memory file storage adapter for testing."""
 
 import io
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 from uuid import uuid4
 
 from app.application.ports import FileStoragePort, SavedFile
@@ -21,7 +21,7 @@ class InMemoryFileStorage(FileStoragePort):
         ext = original_filename.split(".")[-1] if "." in original_filename else "bin"
         storage_key = f"{uuid4()}.{ext}"
         self._storage[storage_key] = file_bytes
-        
+
         return SavedFile(
             url=f"http://testserver/uploads/{storage_key}",
             size_bytes=len(file_bytes),
@@ -36,7 +36,7 @@ class InMemoryFileStorage(FileStoragePort):
         data = self._storage.get(storage_key)
         if data is None:
             raise FileNotFoundError(f"File {storage_key} not found")
-        
+
         # Simula streaming
         chunk_size = 1024 * 1024  # 1MB
         stream = io.BytesIO(data)

@@ -25,12 +25,16 @@ class LiveKitTokenResponse(BaseModel):
 
 def get_livekit_service(session: AsyncSession = Depends(get_session)) -> LiveKitService:
     settings = get_settings()
-    if not settings.livekit_api_key or not settings.livekit_api_secret or not settings.livekit_url:
+    if (
+        not settings.livekit_api_key
+        or not settings.livekit_api_secret
+        or not settings.livekit_url
+    ):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="LiveKit is not configured on this server.",
         )
-        
+
     client = LiveKitClient(
         api_key=settings.livekit_api_key,
         api_secret=settings.livekit_api_secret,

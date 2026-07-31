@@ -8,9 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.presentation.api.v1.auth_routes import router as auth_router
 from app.presentation.api.v1.livekit_routes import router as livekit_router
+from app.presentation.api.v1.notes_routes import router as notes_router
 from app.presentation.api.v1.room_routes import router as room_router
 from app.presentation.api.v1.user_routes import router as user_router
-from app.presentation.api.v1.notes_routes import router as notes_router
 from app.presentation.ws.rooms_ws import router as rooms_ws_router
 
 
@@ -26,7 +26,9 @@ settings = get_settings()
 
 app = FastAPI(
     title="StudySync API",
-    description="Collaborative study platform — rooms, Pomodoro, notes, recommendations",
+    description=(
+        "Collaborative study platform — rooms, Pomodoro, notes, recommendations"
+    ),
     version="0.1.0",
     docs_url="/docs",
     redoc_url="/redoc",

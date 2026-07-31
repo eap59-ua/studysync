@@ -1,6 +1,5 @@
 """Room application service."""
 
-from typing import Optional
 from uuid import UUID
 
 from app.domain.ports import RoomRepository
@@ -15,7 +14,12 @@ class RoomService:
         self.room_repo = room_repo
 
     async def create_room(
-        self, user: User, name: str, subject: str, max_members: int = 8, is_public: bool = True
+        self,
+        user: User,
+        name: str,
+        subject: str,
+        max_members: int = 8,
+        is_public: bool = True,
     ) -> Room:
         """Create a new room and add the creator as the first member."""
         if not (2 <= max_members <= 20):
@@ -49,7 +53,7 @@ class RoomService:
         room_with_members = await self.room_repo.get_room_with_members(room_id)
         if not room_with_members:
             raise ValueError("room not found")
-        
+
         _, members = room_with_members
         if any(m.id == user.id for m in members):
             raise ValueError("already joined")
@@ -67,7 +71,7 @@ class RoomService:
             return
 
         room, members = room_with_members
-        
+
         # Check if user is actually in the room
         if not any(m.id == user.id for m in members):
             return
@@ -81,7 +85,7 @@ class RoomService:
 
         # If owner left but there are others, transfer ownership to the oldest member
         if room.owner_id == user.id:
-            # Re-fetch members to get the new list without the leaving user, 
+            # Re-fetch members to get the new list without the leaving user,
             # but since we already have the list we can just filter it and sort
             # In a real app we'd sort by joined_at. We'll pick the first available.
             remaining = [m for m in members if m.id != user.id]
@@ -89,10 +93,12 @@ class RoomService:
                 room.owner_id = remaining[0].id
                 await self.room_repo.update(room)
 
-    async def get_room_with_members(self, room_id: UUID) -> Optional[tuple[Room, list[User]]]:
+    async def get_room_with_members(
+        self, room_id: UUID
+    ) -> tuple[Room, list[User]] | None:
         """Get room details along with its member list."""
         return await self.room_repo.get_room_with_members(room_id)
 
-    async def get_room(self, room_id: UUID) -> Optional[Room]:
+    async def get_room(self, room_id: UUID) -> Room | None:
         """Get just the room entity."""
         return await self.room_repo.get_by_id(room_id)
