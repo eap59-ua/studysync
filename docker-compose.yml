@@ -29,6 +29,33 @@ services:
       timeout: 3s
       retries: 5
 
+  # Servidor LiveKit para desarrollo y E2E. La demo desplegada usa LiveKit Cloud
+  # (ver docs/adr/001-architecture.md); esto evita que el E2E dependa de una cuenta
+  # externa que puede caducar, que es lo que dejó el BUG 2 abierto dos meses.
+  livekit:
+    image: livekit/livekit-server:v1.12.0
+    restart: unless-stopped
+    command: --dev
+    environment:
+      # Claves de desarrollo. Tienen que coincidir con backend/.env.
+      LIVEKIT_KEYS: "devkey: secret"
+      # Docker Desktop no enruta la red del contenedor desde el host, así que el
+      # servidor debe anunciar 127.0.0.1 como candidato ICE o el navegador no
+      # alcanza el medio aunque el WebSocket de señalización sí conecte.
+      NODE_IP: 127.0.0.1
+      # UDP multiplexado en un solo puerto: publicar el rango 50000-60000 en
+      # Docker Desktop levanta un docker-proxy por puerto y tarda minutos.
+      UDP_PORT: 7882
+    ports:
+      - "7880:7880"      # señalización HTTP/WebSocket
+      - "7881:7881"      # WebRTC sobre TCP (fallback)
+      - "7882:7882/udp"  # WebRTC sobre UDP
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:7880/"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   backend:
     build:
       context: ./backend
@@ -41,6 +68,11 @@ services:
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET: dev-secret-change-in-production
       ENVIRONMENT: development
+      LIVEKIT_API_KEY: devkey
+      LIVEKIT_API_SECRET: secret
+      # Ojo: NO uses http://livekit:7880 aquí. Esta URL viaja al navegador dentro
+      # de la respuesta del token, y el navegador vive fuera de la red de Docker.
+      LIVEKIT_URL: http://localhost:7880
     volumes:
       - ./backend/app:/app/app
     depends_on:

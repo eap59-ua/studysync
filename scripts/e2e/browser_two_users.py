@@ -17,6 +17,83 @@ if sys.platform == "win32":
 
 from playwright.async_api import async_playwright
 
+# Clases que renderiza @livekit/components-react
+LK_TILE = ".lk-participant-tile"
+LK_STATE_TOAST = ".lk-toast-connection-state"
+
+
+def track_livekit_ws(page, sink):
+    """Observa el WebSocket que el cliente abre contra el servidor LiveKit.
+
+    Es la señal más directa de que el vídeo funciona: el BUG 2 consistía
+    exactamente en que esta conexión nunca llegaba a abrirse. Mirar el DOM no
+    basta, porque el tile del participante se dibuja igualmente con la sala
+    desconectada — así fue como el bug pasó desapercibido en junio.
+
+    El WS de presencia del backend va por el 8000, así que filtrar por el 7880
+    los distingue.
+    """
+
+    def on_websocket(ws):
+        if ":7880" not in ws.url:
+            return
+        sink["opened"] = True
+        sink["url"] = ws.url
+        ws.on("close", lambda _: sink.__setitem__("closed", True))
+        ws.on("socketerror", lambda err: sink.__setitem__("error", str(err)))
+
+    page.on("websocket", on_websocket)
+
+
+async def check_video_connected(page, label, lkws, results):
+    """Comprueba que LiveKit conectó de verdad. Devuelve True solo si lo hizo.
+
+    Antes todas las ramas de esta comprobación acababan en True, así que el
+    script salía con código 0 con el vídeo caído (BUG 3 del informe del
+    Prompt 7). Ahora cualquier estado que no sea "conectado" es un fallo.
+    """
+    if await page.locator("text=Video no disponible").count() > 0:
+        detail = await page.locator("text=Video no disponible").first.text_content()
+        print(f"  [FAIL] {label}: RoomVideoGrid en estado de error ({detail})")
+        results["bugs"].append(f"{label}: RoomVideoGrid muestra 'Video no disponible'")
+        return False
+
+    if not lkws.get("opened"):
+        print(f"  [FAIL] {label}: el cliente no abrió ningún WebSocket contra :7880")
+        results["bugs"].append(
+            f"{label}: sin WebSocket a LiveKit — ¿servidor caído o LIVEKIT_URL mal?"
+        )
+        return False
+
+    if lkws.get("error"):
+        print(f"  [FAIL] {label}: error en el WebSocket de LiveKit: {lkws['error']}")
+        results["bugs"].append(f"{label}: WebSocket de LiveKit con error")
+        return False
+
+    if lkws.get("closed"):
+        print(f"  [FAIL] {label}: el WebSocket de LiveKit se abrió y se cerró")
+        results["bugs"].append(f"{label}: LiveKit se desconectó tras conectar")
+        return False
+
+    toast = page.locator(LK_STATE_TOAST)
+    if await toast.count() > 0:
+        state = (await toast.first.text_content() or "").strip()
+        if state and state.lower() != "connected":
+            print(f"  [FAIL] {label}: LiveKit en estado '{state}'")
+            results["bugs"].append(f"{label}: LiveKit muestra '{state}'")
+            return False
+
+    try:
+        await page.wait_for_selector(LK_TILE, timeout=20000)
+    except Exception:
+        print(f"  [FAIL] {label}: ningún '{LK_TILE}' tras 20 s")
+        results["bugs"].append(f"{label}: LiveKit no renderizó ningún participante")
+        return False
+
+    tiles = await page.locator(LK_TILE).count()
+    print(f"  [OK] {label}: LiveKit conectado ({tiles} tile(s), {lkws['url']})")
+    return True
+
 
 async def main():
     results = {
@@ -24,7 +101,8 @@ async def main():
         "ws_badge_user2": False,
         "member_list_user1_sees_user2": False,
         "member_list_user2_sees_user1": False,
-        "video_grid_no_error": False,
+        "video_user1": False,
+        "video_user2": False,
         "console_errors": [],
         "bugs": [],
     }
@@ -35,13 +113,27 @@ async def main():
     os.makedirs(screenshots_dir, exist_ok=True)
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        # Chromium headless deniega cámara y micrófono por defecto, así que
+        # LiveKit no podía publicar tracks. Los dispositivos falsos evitan además
+        # depender de que la máquina donde corre el E2E tenga webcam.
+        browser = await p.chromium.launch(
+            headless=True,
+            args=[
+                "--use-fake-device-for-media-stream",
+                "--use-fake-ui-for-media-stream",
+            ],
+        )
 
         # Two isolated browser contexts (separate localStorage)
-        ctx1 = await browser.new_context()
-        ctx2 = await browser.new_context()
+        ctx1 = await browser.new_context(permissions=["camera", "microphone"])
+        ctx2 = await browser.new_context(permissions=["camera", "microphone"])
         page1 = await ctx1.new_page()
         page2 = await ctx2.new_page()
+
+        # Estado de los WebSocket contra LiveKit, poblado por los listeners
+        lkws1, lkws2 = {}, {}
+        track_livekit_ws(page1, lkws1)
+        track_livekit_ws(page2, lkws2)
 
         # Capture console errors
         console_errors_1 = []
@@ -169,24 +261,12 @@ async def main():
             print("[7/7] Verifying RoomVideoGrid...")
             await asyncio.sleep(2)
 
-            page1_content = await page1.content()
-            if "Video no disponible" in page1_content:
-                # This is expected without a LiveKit server running
-                print("  [WARN] 'Video no disponible' shown (LiveKit server not running - expected in dev)")
-                results["video_grid_no_error"] = True
-                results["bugs"].append("LiveKit server not running at localhost:7880 - video shows graceful error")
-            elif "Conectando video" in page1_content or "Conectando v" in page1_content:
-                print("  [PENDING] Video grid still connecting")
-                results["video_grid_no_error"] = True
-            else:
-                # Check for lk-video-conference class
-                lk_el = page1.locator('[data-lk-theme]')
-                if await lk_el.count() > 0:
-                    results["video_grid_no_error"] = True
-                    print("  [OK] RoomVideoGrid: LiveKit room connected!")
-                else:
-                    print("  [WARN] RoomVideoGrid: Unknown state")
-                    results["video_grid_no_error"] = True  # Don't fail for this
+            results["video_user1"] = await check_video_connected(
+                page1, "user1", lkws1, results
+            )
+            results["video_user2"] = await check_video_connected(
+                page2, "user2", lkws2, results
+            )
 
             # --- Screenshots ---
             print("\nTaking screenshots...")
@@ -217,7 +297,8 @@ async def main():
     print(f"  WS Badge user2 'Conectado':        {'PASS' if results['ws_badge_user2'] else 'FAIL'}")
     print(f"  user1 sees User Two in MemberList:  {'PASS' if results['member_list_user1_sees_user2'] else 'FAIL'}")
     print(f"  user2 sees User One in MemberList:  {'PASS' if results['member_list_user2_sees_user1'] else 'FAIL'}")
-    print(f"  Video Grid (no crash):              {'PASS' if results['video_grid_no_error'] else 'FAIL'}")
+    print(f"  LiveKit conectado user1:            {'PASS' if results['video_user1'] else 'FAIL'}")
+    print(f"  LiveKit conectado user2:            {'PASS' if results['video_user2'] else 'FAIL'}")
 
     if results["console_errors"]:
         print(f"\n  Console errors ({len(results['console_errors'])}):")
@@ -231,12 +312,16 @@ async def main():
 
     print("="*60)
 
-    # Exit with error if any critical check failed
+    # Exit with error if any critical check failed.
+    # El vídeo entra aquí desde el Prompt 8: un E2E que no falla con el vídeo
+    # caído no es una puerta de calidad (BUG 3 del informe del Prompt 7).
     critical_pass = all([
         results["ws_badge_user1"],
         results["ws_badge_user2"],
         results["member_list_user1_sees_user2"],
         results["member_list_user2_sees_user1"],
+        results["video_user1"],
+        results["video_user2"],
     ])
     sys.exit(0 if critical_pass else 1)
 

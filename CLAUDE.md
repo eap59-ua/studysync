@@ -15,7 +15,9 @@ Todos verificados el 31/07/2026 en un clon limpio.
 
 ```bash
 # Infraestructura (los puertos locales se sobrescriben en docker-compose.override.yml)
-docker compose up -d
+# Postgres + Redis + LiveKit. NO uses `docker compose up -d` a secas si vas a levantar
+# el backend con uvicorn: el servicio `backend` publica también el :8000 y chocan.
+docker compose up -d postgres redis livekit
 
 # Backend
 cd backend
@@ -111,6 +113,16 @@ sin `/api/v1`.
 abiertos: React StrictMode monta el efecto dos veces en desarrollo, y una reconexión solapa
 brevemente con el socket que reemplaza. Usa `count_connected_users()` e `is_user_connected()`,
 nunca `len(active_connections[room_id])`. Esto ya causó un bug de miembros duplicados.
+
+**LiveKit en local es un servicio del compose, no LiveKit Cloud.** El ADR y el README
+describen Cloud para el despliegue, pero en desarrollo y en el E2E se usa
+`livekit/livekit-server` del `docker-compose.yml`, con `devkey`/`secret` en el `:7880`
+para que case con `backend/.env`. Dos cosas que no se tocan: `NODE_IP=127.0.0.1` —sin él
+el servidor anuncia la IP del contenedor como candidato ICE y Docker Desktop no la enruta
+desde el host, así que conecta la señalización pero no hay vídeo— y `UDP_PORT=7882`, que
+multiplexa WebRTC en un puerto en vez de publicar el rango 50000-60000, que en Docker
+Desktop tarda minutos. Y la `LIVEKIT_URL` del backend viaja al navegador dentro de la
+respuesta del token: tiene que ser alcanzable desde el host, nunca `http://livekit:7880`.
 
 **El upload de notas necesita `Content-Type: undefined`.** La instancia de axios en
 `services/http.ts` fija `application/json`. Para `multipart/form-data` hay que anularlo y dejar
