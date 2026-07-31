@@ -31,6 +31,14 @@ export const authStorage = {
     }
   },
 
+  /**
+   * Renueva solo el access token. El endpoint de refresh no devuelve uno nuevo
+   * de refresco, así que el guardado sigue valiendo.
+   */
+  setAccessToken: (accessToken: string) => {
+    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+  },
+
   set: (params: {
     accessToken: string;
     refreshToken: string;
