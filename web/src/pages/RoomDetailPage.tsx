@@ -2,11 +2,14 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { roomsService, type RoomDetail } from "../services/rooms.service";
 import { MemberList } from "../components/rooms/MemberList";
+import { PomodoroPanel } from "../components/rooms/PomodoroPanel";
 import { RoomVideoGrid } from "../components/rooms/RoomVideoGrid";
 import { Button } from "../components/ui/Button";
 import { useAuth } from "../hooks/useAuth";
 import { useRoomChannel } from "../hooks/useRoomChannel";
 import { useRoomPresence } from "../hooks/useRoomPresence";
+import { useRoomPomodoro } from "../hooks/useRoomPomodoro";
+import { useUserPomodoroStats } from "../hooks/useUserPomodoroStats";
 
 export function RoomDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -55,6 +58,8 @@ export function RoomDetailPage() {
   const channel = useRoomChannel(id || "");
   const { status: wsStatus } = channel;
   const { members: activeMembers } = useRoomPresence(channel);
+  const pomodoro = useRoomPomodoro(channel);
+  const { pomodorosCompleted } = useUserPomodoroStats(channel);
 
   const handleLeave = async () => {
     if (!id) return;
@@ -109,11 +114,21 @@ export function RoomDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-3 bg-black rounded-xl border border-gray-800 min-h-[60vh] flex items-center justify-center overflow-hidden">
+        {/* En móvil el Pomodoro va primero: es lo que se mira cada pocos
+            minutos. En escritorio se recoloca entre el vídeo y los miembros. */}
+        <div className="lg:order-2 lg:col-span-1">
+          <PomodoroPanel
+            pomodoro={pomodoro}
+            isOwner={user?.id === roomDetail.owner_id}
+            pomodorosCompleted={pomodorosCompleted}
+          />
+        </div>
+
+        <div className="lg:order-1 lg:col-span-2 bg-black rounded-xl border border-gray-800 min-h-[60vh] flex items-center justify-center overflow-hidden">
           <RoomVideoGrid roomId={id || ""} />
         </div>
 
-        <div className="lg:col-span-1">
+        <div className="lg:order-3 lg:col-span-1">
           <MemberList members={displayMembers} />
         </div>
       </div>
