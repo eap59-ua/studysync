@@ -255,3 +255,117 @@ async def test_connection_manager_broadcast():
     ws2.send_json.assert_awaited_with(msg)
 
 
+@pytest.mark.asyncio
+async def test_connection_manager_broadcast_except_skips_sender():
+    """broadcast_to_room_except no envía al socket excluido."""
+    import uuid
+    from unittest.mock import AsyncMock
+
+    from app.domain.user import User
+    from app.presentation.ws.rooms_ws import ConnectionManager
+
+    mgr = ConnectionManager()
+    room_id = uuid.uuid4()
+
+    ws1 = AsyncMock()
+    ws2 = AsyncMock()
+    user1 = User(
+        id=uuid.uuid4(), email="a@a.com", hashed_password="x", display_name="A"
+    )
+    user2 = User(
+        id=uuid.uuid4(), email="b@b.com", hashed_password="x", display_name="B"
+    )
+
+    await mgr.connect(ws1, room_id, user1)
+    await mgr.connect(ws2, room_id, user2)
+
+    msg = {"type": "user_joined"}
+    await mgr.broadcast_to_room_except(room_id, msg, exclude=ws1)
+
+    ws1.send_json.assert_not_awaited()
+    ws2.send_json.assert_awaited_with(msg)
+
+
+@pytest.mark.asyncio
+async def test_connection_manager_deduplicates_users_with_multiple_sockets():
+    """Dos sockets del mismo usuario cuentan como una sola presencia.
+
+    Reproduce el bug detectado en el E2E del Prompt 7: React StrictMode monta
+    el efecto dos veces y abría dos WebSockets por usuario, de modo que la
+    lista de miembros mostraba a cada persona repetida.
+    """
+    import uuid
+    from unittest.mock import AsyncMock
+
+    from app.domain.user import User
+    from app.presentation.ws.rooms_ws import ConnectionManager
+
+    mgr = ConnectionManager()
+    room_id = uuid.uuid4()
+
+    user1 = User(
+        id=uuid.uuid4(), email="a@a.com", hashed_password="x", display_name="A"
+    )
+    user2 = User(
+        id=uuid.uuid4(), email="b@b.com", hashed_password="x", display_name="B"
+    )
+
+    ws1a, ws1b, ws2 = AsyncMock(), AsyncMock(), AsyncMock()
+    await mgr.connect(ws1a, room_id, user1)
+    await mgr.connect(ws1b, room_id, user1)  # segundo socket del mismo usuario
+    await mgr.connect(ws2, room_id, user2)
+
+    assert len(mgr.active_connections[room_id]) == 3
+    assert mgr.count_connected_users(room_id) == 2
+
+    connected_ids = mgr.get_connected_user_ids(room_id)
+    assert len(connected_ids) == 2
+    assert set(connected_ids) == {user1.id, user2.id}
+
+    users = mgr.get_connected_users(room_id)
+    assert len(users) == 2
+
+
+@pytest.mark.asyncio
+async def test_connection_manager_user_still_connected_with_second_socket():
+    """Cerrar un socket no marca al usuario como desconectado si le queda otro."""
+    import uuid
+    from unittest.mock import AsyncMock
+
+    from app.domain.user import User
+    from app.presentation.ws.rooms_ws import ConnectionManager
+
+    mgr = ConnectionManager()
+    room_id = uuid.uuid4()
+    user = User(
+        id=uuid.uuid4(), email="a@a.com", hashed_password="x", display_name="A"
+    )
+
+    ws_a, ws_b = AsyncMock(), AsyncMock()
+    await mgr.connect(ws_a, room_id, user)
+    await mgr.connect(ws_b, room_id, user)
+
+    mgr.disconnect(ws_a, room_id)
+    assert mgr.is_user_connected(room_id, user.id) is True
+
+    mgr.disconnect(ws_b, room_id)
+    assert mgr.is_user_connected(room_id, user.id) is False
+    assert mgr.count_connected_users(room_id) == 0
+
+
+@pytest.mark.asyncio
+async def test_connection_manager_empty_room_returns_no_users():
+    """Un room sin conexiones no rompe los helpers de presencia."""
+    import uuid
+
+    from app.presentation.ws.rooms_ws import ConnectionManager
+
+    mgr = ConnectionManager()
+    room_id = uuid.uuid4()
+
+    assert mgr.get_connected_users(room_id) == []
+    assert mgr.get_connected_user_ids(room_id) == []
+    assert mgr.count_connected_users(room_id) == 0
+    assert mgr.is_user_connected(room_id, uuid.uuid4()) is False
+
+

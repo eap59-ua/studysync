@@ -55,16 +55,52 @@ class ConnectionManager:
                 except Exception:
                     pass
 
-    def get_connected_user_ids(self, room_id: UUID) -> list[UUID]:
-        """Return UUIDs of all users currently connected to a room."""
-        if room_id not in self.active_connections:
-            return []
-        ids = []
-        for ws in self.active_connections[room_id]:
+    async def broadcast_to_room_except(
+        self, room_id: UUID, message: dict, *, exclude: WebSocket
+    ):
+        """Broadcast to all connections in a room except the excluded one."""
+        if room_id in self.active_connections:
+            websockets = list(self.active_connections[room_id])
+            for connection in websockets:
+                if connection is exclude:
+                    continue
+                try:
+                    await connection.send_json(message)
+                except Exception:
+                    pass
+
+    def get_connected_users(self, room_id: UUID) -> list[User]:
+        """Return distinct users connected to a room (one entry per user).
+
+        A single user may hold several sockets at once (React StrictMode
+        remounts the effect twice, and a reconnection may briefly overlap with
+        the socket it replaces). Presence is a property of the user, not of the
+        socket, so deduplication happens here.
+        """
+        distinct: dict[UUID, User] = {}
+        for ws in self.active_connections.get(room_id, set()):
             user = self.connection_users.get(ws)
-            if user:
-                ids.append(user.id)
-        return ids
+            if user and user.id not in distinct:
+                distinct[user.id] = user
+        return list(distinct.values())
+
+    def get_connected_user_ids(self, room_id: UUID) -> list[UUID]:
+        """Return UUIDs of the distinct users currently connected to a room."""
+        return [user.id for user in self.get_connected_users(room_id)]
+
+    def count_connected_users(self, room_id: UUID) -> int:
+        """Return how many distinct users are connected to a room."""
+        return len(self.get_connected_users(room_id))
+
+    def is_user_connected(self, room_id: UUID, user_id: UUID) -> bool:
+        """Return whether a user still holds at least one socket in a room."""
+        return any(
+            user is not None and user.id == user_id
+            for user in (
+                self.connection_users.get(ws)
+                for ws in self.active_connections.get(room_id, set())
+            )
+        )
 
 
 manager = ConnectionManager()
@@ -111,16 +147,34 @@ async def room_websocket(
         is_active=user.is_active,
     ).model_dump()
 
-    current_count = len(manager.active_connections.get(room_id, []))
+    current_count = manager.count_connected_users(room_id)
 
-    # Broadcast join
-    await manager.broadcast_to_room(
+    # Send initial presence state to the newly connected user
+    active_users = [
+        UserResponse(
+            id=str(u.id),
+            email=u.email,
+            display_name=u.display_name,
+            is_active=u.is_active,
+        ).model_dump()
+        for u in manager.get_connected_users(room_id)
+    ]
+
+    await websocket.send_json({
+        "type": "presence_state",
+        "members": active_users,
+        "count": current_count,
+    })
+
+    # Broadcast join to OTHER users (the joining user already got presence_state)
+    await manager.broadcast_to_room_except(
         room_id,
         {
             "type": "user_joined",
             "user": user_data,
             "count": current_count,
-        }
+        },
+        exclude=websocket,
     )
 
     # 4. Build PomodoroService for this connection
@@ -184,15 +238,17 @@ async def room_websocket(
                 pass
     except WebSocketDisconnect:
         manager.disconnect(websocket, room_id)
-        current_count = len(manager.active_connections.get(room_id, []))
 
-        await manager.broadcast_to_room(
-            room_id,
-            {
-                "type": "user_left",
-                "user": user_data,
-                "count": current_count,
-            }
-        )
+        # Solo se anuncia la salida cuando el usuario no conserva ningún otro
+        # socket abierto en el room: si tiene varios, cerrar uno no es salir.
+        if not manager.is_user_connected(room_id, user.id):
+            await manager.broadcast_to_room(
+                room_id,
+                {
+                    "type": "user_left",
+                    "user": user_data,
+                    "count": manager.count_connected_users(room_id),
+                }
+            )
 
     await redis_client.aclose()

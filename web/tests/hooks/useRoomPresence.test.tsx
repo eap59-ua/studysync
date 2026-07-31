@@ -110,6 +110,58 @@ describe("useRoomPresence", () => {
     expect(result.current.memberCount).toBe(0);
   });
 
+  it("deduplica miembros repetidos en presence_state", () => {
+    const { result } = renderHook(() => useRoomPresence("room1"));
+
+    act(() => { vi.runAllTimers(); });
+    const ws = MockWebSocket.instances[0];
+
+    // Un usuario con dos sockets abiertos llegaba repetido en la lista
+    act(() => {
+      ws.onmessage?.({
+        data: JSON.stringify({
+          type: "presence_state",
+          members: [
+            { id: "u1", display_name: "User One" },
+            { id: "u2", display_name: "User Two" },
+            { id: "u1", display_name: "User One" },
+          ],
+          count: 2,
+        }),
+      });
+    });
+
+    expect(result.current.members).toHaveLength(2);
+    expect(result.current.members.map((u) => u.id)).toEqual(["u1", "u2"]);
+    expect(result.current.memberCount).toBe(2);
+  });
+
+  it("no duplica al recibir user_joined de alguien ya presente", () => {
+    const { result } = renderHook(() => useRoomPresence("room1"));
+
+    act(() => { vi.runAllTimers(); });
+    const ws = MockWebSocket.instances[0];
+
+    act(() => {
+      ws.onmessage?.({
+        data: JSON.stringify({
+          type: "presence_state",
+          members: [{ id: "u1", display_name: "User One" }],
+          count: 1,
+        }),
+      });
+      ws.onmessage?.({
+        data: JSON.stringify({
+          type: "user_joined",
+          user: { id: "u1", display_name: "User One" },
+          count: 1,
+        }),
+      });
+    });
+
+    expect(result.current.members).toHaveLength(1);
+  });
+
   it("ignores invalid JSON without crashing", () => {
     renderHook(() => useRoomPresence("room1"));
 

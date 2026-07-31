@@ -21,8 +21,14 @@ export function useRoomPresence(roomId: string) {
       setMembers((m) => m.filter((u) => u.id !== (msg.user as User).id));
       if (msg.count !== undefined) setMemberCount(msg.count as number);
     } else if (msg.type === "presence_state") {
-      // Estado inicial (si el backend lo envía)
-      if (msg.members) setMembers(msg.members as User[]);
+      // Estado inicial enviado al conectar. Se deduplica por id aunque el
+      // backend ya lo haga: un cliente no debe fiarse de eso para renderizar.
+      if (msg.members) {
+        const unique = Array.from(
+          new Map((msg.members as User[]).map((u) => [u.id, u])).values()
+        );
+        setMembers(unique);
+      }
       if (msg.count !== undefined) setMemberCount(msg.count as number);
     }
   }, []);
