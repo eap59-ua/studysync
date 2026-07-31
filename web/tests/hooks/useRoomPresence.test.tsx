@@ -1,75 +1,29 @@
 import { renderHook, act } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { useRoomPresence } from "@/hooks/useRoomPresence";
-
-// Mock authStorage to always return a token
-vi.mock("@/lib/storage", () => ({
-  authStorage: {
-    getAccessToken: vi.fn().mockReturnValue("fake-token"),
-  },
-}));
-
-// Mock WebSocket
-class MockWebSocket {
-  static instances: MockWebSocket[] = [];
-  url: string;
-  onopen: (() => void) | null = null;
-  onclose: (() => void) | null = null;
-  onerror: (() => void) | null = null;
-  onmessage: ((e: { data: string }) => void) | null = null;
-  readyState = 0; // CONNECTING
-  close = vi.fn();
-  send = vi.fn();
-
-  constructor(url: string) {
-    this.url = url;
-    MockWebSocket.instances.push(this);
-    // Simulate async open
-    setTimeout(() => {
-      this.readyState = 1; // OPEN
-      this.onopen?.();
-    }, 0);
-  }
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-(global as any).WebSocket = MockWebSocket;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-(MockWebSocket as any).OPEN = 1;
+import { createFakeRoomChannel, type FakeRoomChannel } from "../helpers/fakeRoomChannel";
 
 describe("useRoomPresence", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.useFakeTimers();
-    MockWebSocket.instances = [];
-  });
+  let channel: FakeRoomChannel;
 
-  afterEach(() => {
-    vi.useRealTimers();
+  beforeEach(() => {
+    channel = createFakeRoomChannel();
   });
 
   it("initializes with empty members", () => {
-    const { result } = renderHook(() => useRoomPresence("room1"));
+    const { result } = renderHook(() => useRoomPresence(channel));
     expect(result.current.members).toEqual([]);
-    expect(result.current.status).toBe("connecting");
+    expect(result.current.memberCount).toBe(0);
   });
 
-  it("handles user_joined message", async () => {
-    const { result } = renderHook(() => useRoomPresence("room1"));
-
-    // Let the WS connect
-    act(() => { vi.runAllTimers(); });
-
-    const ws = MockWebSocket.instances[0];
-    expect(ws).toBeDefined();
+  it("handles user_joined message", () => {
+    const { result } = renderHook(() => useRoomPresence(channel));
 
     act(() => {
-      ws.onmessage?.({
-        data: JSON.stringify({
-          type: "user_joined",
-          user: { id: "u1", display_name: "User 1" },
-          count: 1,
-        }),
+      channel.emit({
+        type: "user_joined",
+        user: { id: "u1", display_name: "User 1" },
+        count: 1,
       });
     });
 
@@ -78,32 +32,19 @@ describe("useRoomPresence", () => {
   });
 
   it("handles user_left message", () => {
-    const { result } = renderHook(() => useRoomPresence("room1"));
+    const { result } = renderHook(() => useRoomPresence(channel));
 
-    act(() => { vi.runAllTimers(); });
-    const ws = MockWebSocket.instances[0];
-
-    // Join first
     act(() => {
-      ws.onmessage?.({
-        data: JSON.stringify({
-          type: "user_joined",
-          user: { id: "u1", display_name: "User 1" },
-          count: 1,
-        }),
+      channel.emit({
+        type: "user_joined",
+        user: { id: "u1", display_name: "User 1" },
+        count: 1,
       });
     });
     expect(result.current.members).toHaveLength(1);
 
-    // Then leave
     act(() => {
-      ws.onmessage?.({
-        data: JSON.stringify({
-          type: "user_left",
-          user: { id: "u1" },
-          count: 0,
-        }),
-      });
+      channel.emit({ type: "user_left", user: { id: "u1" }, count: 0 });
     });
 
     expect(result.current.members).toHaveLength(0);
@@ -111,23 +52,18 @@ describe("useRoomPresence", () => {
   });
 
   it("deduplica miembros repetidos en presence_state", () => {
-    const { result } = renderHook(() => useRoomPresence("room1"));
-
-    act(() => { vi.runAllTimers(); });
-    const ws = MockWebSocket.instances[0];
+    const { result } = renderHook(() => useRoomPresence(channel));
 
     // Un usuario con dos sockets abiertos llegaba repetido en la lista
     act(() => {
-      ws.onmessage?.({
-        data: JSON.stringify({
-          type: "presence_state",
-          members: [
-            { id: "u1", display_name: "User One" },
-            { id: "u2", display_name: "User Two" },
-            { id: "u1", display_name: "User One" },
-          ],
-          count: 2,
-        }),
+      channel.emit({
+        type: "presence_state",
+        members: [
+          { id: "u1", display_name: "User One" },
+          { id: "u2", display_name: "User Two" },
+          { id: "u1", display_name: "User One" },
+        ],
+        count: 2,
       });
     });
 
@@ -137,41 +73,54 @@ describe("useRoomPresence", () => {
   });
 
   it("no duplica al recibir user_joined de alguien ya presente", () => {
-    const { result } = renderHook(() => useRoomPresence("room1"));
-
-    act(() => { vi.runAllTimers(); });
-    const ws = MockWebSocket.instances[0];
+    const { result } = renderHook(() => useRoomPresence(channel));
 
     act(() => {
-      ws.onmessage?.({
-        data: JSON.stringify({
-          type: "presence_state",
-          members: [{ id: "u1", display_name: "User One" }],
-          count: 1,
-        }),
+      channel.emit({
+        type: "presence_state",
+        members: [{ id: "u1", display_name: "User One" }],
+        count: 1,
       });
-      ws.onmessage?.({
-        data: JSON.stringify({
-          type: "user_joined",
-          user: { id: "u1", display_name: "User One" },
-          count: 1,
-        }),
+      channel.emit({
+        type: "user_joined",
+        user: { id: "u1", display_name: "User One" },
+        count: 1,
       });
     });
 
     expect(result.current.members).toHaveLength(1);
   });
 
-  it("ignores invalid JSON without crashing", () => {
-    renderHook(() => useRoomPresence("room1"));
+  it("ignora los mensajes de pomodoro que viajan por el mismo canal", () => {
+    // Comparte socket con useRoomPomodoro: no debe reaccionar a lo ajeno.
+    const { result } = renderHook(() => useRoomPresence(channel));
 
-    act(() => { vi.runAllTimers(); });
-    const ws = MockWebSocket.instances[0];
-
-    expect(() => {
-      act(() => {
-        ws.onmessage?.({ data: "invalid-json" });
+    act(() => {
+      channel.emit({
+        type: "presence_state",
+        members: [{ id: "u1", display_name: "User One" }],
+        count: 1,
       });
-    }).not.toThrow();
+      channel.emit({ type: "pomodoro.stopped" });
+    });
+
+    expect(result.current.members).toHaveLength(1);
+    expect(result.current.memberCount).toBe(1);
+  });
+
+  it("se da de baja del canal al desmontarse", () => {
+    const { result, unmount } = renderHook(() => useRoomPresence(channel));
+
+    unmount();
+
+    act(() => {
+      channel.emit({
+        type: "user_joined",
+        user: { id: "u1", display_name: "User 1" },
+        count: 1,
+      });
+    });
+
+    expect(result.current.members).toEqual([]);
   });
 });

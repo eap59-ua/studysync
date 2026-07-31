@@ -5,6 +5,7 @@ import { MemberList } from "../components/rooms/MemberList";
 import { RoomVideoGrid } from "../components/rooms/RoomVideoGrid";
 import { Button } from "../components/ui/Button";
 import { useAuth } from "../hooks/useAuth";
+import { useRoomChannel } from "../hooks/useRoomChannel";
 import { useRoomPresence } from "../hooks/useRoomPresence";
 
 export function RoomDetailPage() {
@@ -50,7 +51,10 @@ export function RoomDetailPage() {
     };
   }, [id, user]);
 
-  const { status: wsStatus, members: activeMembers } = useRoomPresence(id || "");
+  // Un solo socket para todo el room; de él cuelgan presencia y pomodoro.
+  const channel = useRoomChannel(id || "");
+  const { status: wsStatus } = channel;
+  const { members: activeMembers } = useRoomPresence(channel);
 
   const handleLeave = async () => {
     if (!id) return;
