@@ -51,9 +51,8 @@ Ver el detalle en [`docs/reports/00-inventario-retoma-2026-07-31.md`](docs/repor
       crítico y no afecta al exit code.
 - [x] ~~`ruff check` con 261 errores~~ — en verde desde `f721127`, con `ruff`
       acotado a `>=0.14,<0.15` para que no vuelva a romperse solo.
-- [ ] **No existe `CLAUDE.md` / `AGENTS.md`** en la raíz. Las reglas duras
-      (hexagonal estricta, TDD en domain/application, commits en español,
-      inyección de reloj) solo viven fuera del repo.
+- [x] ~~No existe `CLAUDE.md` en la raíz~~ — creado el 31/07/2026 con reglas
+      duras, comandos verificados y trampas conocidas.
 
 ### 🟢 Menores
 
