@@ -46,6 +46,17 @@ Ver el detalle en [`docs/reports/00-inventario-retoma-2026-07-31.md`](docs/repor
       Es un espejo en China: desde los runners de GitHub Actions es lento y
       añade un punto de fallo. Regenerar el lock contra `registry.npmjs.org`
       con `npm config set registry https://registry.npmjs.org/`.
+- [ ] **La calibración de reloj del Pomodoro es aproximada.** `useRoomPomodoro`
+      mide el desfase con `started_at` de los mensajes recién emitidos
+      (`phase_change`, y `pomodoro.state` salvo el primero de cada conexión).
+      Como el backend solo manda el estado al conectar **si hay un pomodoro
+      activo**, cuando no lo hay el primer `pomodoro.state` sí es fresco pero se
+      trata como si no lo fuera, y no se calibra hasta el primer cambio de fase.
+      El error va siempre en la dirección segura —offset 0, se usa el reloj del
+      cliente— pero no es exacto. La solución limpia es del backend: que `pong`
+      devuelva la hora del servidor, o meter un timestamp en el sobre de los
+      mensajes, y hacer una estimación tipo SNTP con el tiempo de ida y vuelta.
+
 - [ ] **`NoteModel` no tiene columna `storage_key`.** `delete_note()` lo
       reconstruye partiendo `file_url` por `/`, lo que acopla el servicio al
       formato de URL de `LocalDiskStorage`; un adapter S3 con URLs firmadas
