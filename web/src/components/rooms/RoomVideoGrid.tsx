@@ -15,7 +15,12 @@ export function RoomVideoGrid({ roomId }: { roomId: string }) {
         if (isMounted) setConn({ token: res.token, url: res.url });
       })
       .catch((e) => {
-        if (isMounted) setError(e.message ?? "Error obteniendo token");
+        // Extract detail from Axios error response when available
+        const detail =
+          e?.response?.data?.detail ??
+          e?.message ??
+          "Error obteniendo token de vídeo";
+        if (isMounted) setError(detail);
       });
 
     return () => {
@@ -23,7 +28,15 @@ export function RoomVideoGrid({ roomId }: { roomId: string }) {
     };
   }, [roomId]);
 
-  if (error) return <div className="p-4 text-red-600 h-full flex items-center justify-center bg-white rounded-xl border border-red-100">{error}</div>;
+  if (error) return (
+    <div className="p-6 h-full flex flex-col items-center justify-center bg-gray-900 rounded-xl text-center gap-3">
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+      </svg>
+      <p className="text-gray-400 text-sm font-medium">Video no disponible</p>
+      <p className="text-gray-600 text-xs max-w-xs">{error}</p>
+    </div>
+  );
   if (!conn) return (
     <div className="flex items-center justify-center h-full bg-gray-50 rounded-xl" role="status">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mr-3"></div>
