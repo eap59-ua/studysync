@@ -28,24 +28,29 @@ Ver el detalle en [`docs/reports/00-inventario-retoma-2026-07-31.md`](docs/repor
 
 ### 🔴 Bloqueantes
 
-- [ ] **`passlib` 1.7.4 incompatible con `bcrypt` ≥ 4.1.** `passlib` lee
-      `bcrypt.__about__.__version__`, eliminado en bcrypt 4.1. Con `bcrypt` 5.x
-      `/auth/register` devuelve 422 y caen 37 tests. Además `passlib` importa
-      `crypt`, eliminado en Python 3.13, y no se mantiene desde 2020.
-      *Parche:* pinear `bcrypt<4.1`. *Solución:* migrar a `pwdlib[bcrypt]`.
-- [ ] **`npm install` falla en clon limpio.** `openapi-typescript@7` exige
-      `typescript@^5` y el proyecto pinea `~6.0.2` → `ERESOLVE`. El CI no puede
-      instalar. Bajar TypeScript a 5.x o esperar a `openapi-typescript@8`.
 - [ ] **LiveKit muestra "Disconnected" en el E2E** — ver
       [`docs/reports/07-e2e-report.md`](docs/reports/07-e2e-report.md), BUG 2.
+- [x] ~~`passlib` incompatible con `bcrypt` ≥ 4.1~~ — migrado a `pwdlib` con
+      Argon2id en `5b050ad`.
+- [x] ~~`npm ci` falla por el peer de `openapi-typescript`~~ — sacado de
+      devDependencies en `69d6797`.
 
 ### 🟡 Importantes
 
 - [ ] **`datetime.utcnow()` deprecado** en los modelos SQLAlchemy. Contradice la
       regla del proyecto de inyectar el reloj para testabilidad.
-- [ ] **`ruff check` reporta 261 errores** acumulados. Nunca se ha corrido en CI.
+- [ ] **El lock apunta a `registry.npmmirror.com`** en las 388 dependencias.
+      Es un espejo en China: desde los runners de GitHub Actions es lento y
+      añade un punto de fallo. Regenerar el lock contra `registry.npmjs.org`
+      con `npm config set registry https://registry.npmjs.org/`.
+- [ ] **`NoteModel` no tiene columna `storage_key`.** `delete_note()` lo
+      reconstruye partiendo `file_url` por `/`, lo que acopla el servicio al
+      formato de URL de `LocalDiskStorage`; un adapter S3 con URLs firmadas
+      rompería el borrado.
 - [ ] **El E2E puede dar falso verde**: el check de LiveKit está marcado como no
       crítico y no afecta al exit code.
+- [x] ~~`ruff check` con 261 errores~~ — en verde desde `f721127`, con `ruff`
+      acotado a `>=0.14,<0.15` para que no vuelva a romperse solo.
 - [ ] **No existe `CLAUDE.md` / `AGENTS.md`** en la raíz. Las reglas duras
       (hexagonal estricta, TDD en domain/application, commits en español,
       inyección de reloj) solo viven fuera del repo.
