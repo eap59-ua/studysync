@@ -4,13 +4,19 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+from pwdlib import PasswordHash
+from pwdlib.hashers.argon2 import Argon2Hasher
+from pwdlib.hashers.bcrypt import BcryptHasher
 
 from app.config import get_settings
 from app.domain.ports import UserRepository
 from app.domain.user import User
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# El primer hasher es el que se usa al crear contraseñas nuevas; el resto solo
+# sirven para verificar hashes antiguos. Argon2id es la recomendación actual de
+# OWASP y, a diferencia de bcrypt, no trunca a 72 bytes. Se mantiene BcryptHasher
+# para que los usuarios registrados antes de esta migración sigan pudiendo entrar.
+password_hash = PasswordHash((Argon2Hasher(), BcryptHasher()))
 
 
 class AuthService:
@@ -32,14 +38,14 @@ class AuthService:
         user = User(
             email=email,
             display_name=display_name,
-            hashed_password=pwd_context.hash(password),
+            hashed_password=password_hash.hash(password),
         )
         return await self._user_repo.create(user)
 
     async def login(self, email: str, password: str) -> dict:
         """Authenticate user and return tokens. Raises ValueError on failure."""
         user = await self._user_repo.get_by_email(email)
-        if not user or not pwd_context.verify(password, user.hashed_password):
+        if not user or not password_hash.verify(password, user.hashed_password):
             raise ValueError("Invalid email or password")
 
         access_token = self._create_token(

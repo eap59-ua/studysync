@@ -156,3 +156,40 @@ async def test_refresh_with_invalid_token(client: AsyncClient):
         "refresh_token": "invalid.refresh.token",
     })
     assert resp.status_code == 401
+
+
+# ── Hashing de contraseñas ────────────────────────────────────
+
+def test_new_passwords_are_hashed_with_argon2id():
+    """Las contraseñas nuevas usan Argon2id, no bcrypt."""
+    from app.application.auth_service import password_hash
+
+    assert password_hash.hash("securepass123").startswith("$argon2id$")
+
+
+def test_legacy_bcrypt_hashes_still_verify():
+    """Los usuarios registrados con passlib+bcrypt siguen pudiendo entrar.
+
+    Guarda de regresión de la migración passlib -> pwdlib: si alguien quita
+    BcryptHasher de la tupla, las cuentas antiguas dejan de validar.
+    """
+    import bcrypt
+
+    from app.application.auth_service import password_hash
+
+    legacy = bcrypt.hashpw(b"securepass123", bcrypt.gensalt()).decode()
+
+    assert password_hash.verify("securepass123", legacy) is True
+    assert password_hash.verify("otra-distinta", legacy) is False
+
+
+def test_passwords_longer_than_72_bytes_are_supported():
+    """bcrypt truncaba a 72 bytes; Argon2id no tiene ese límite."""
+    from app.application.auth_service import password_hash
+
+    long_password = "a" * 100
+    hashed = password_hash.hash(long_password)
+
+    assert password_hash.verify(long_password, hashed) is True
+    # Con truncado a 72 bytes esto daría un falso positivo
+    assert password_hash.verify("a" * 72 + "b" * 28, hashed) is False
