@@ -28,7 +28,10 @@ Ver el detalle en [`docs/reports/00-inventario-retoma-2026-07-31.md`](docs/repor
 
 ### 🔴 Bloqueantes
 
-- [ ] **LiveKit muestra "Disconnected" en el E2E** — ver
+- [x] ~~**LiveKit muestra "Disconnected" en el E2E**~~ — no había servidor LiveKit:
+      `backend/.env` apuntaba a `localhost:7880` con las claves por defecto de
+      `livekit-server --dev`, pero ese servicio no existía en `docker-compose.yml`.
+      Añadido en el Bloque 0 del Prompt 8. Ver
       [`docs/reports/07-e2e-report.md`](docs/reports/07-e2e-report.md), BUG 2.
 - [x] ~~`passlib` incompatible con `bcrypt` ≥ 4.1~~ — migrado a `pwdlib` con
       Argon2id en `5b050ad`.
@@ -47,8 +50,9 @@ Ver el detalle en [`docs/reports/00-inventario-retoma-2026-07-31.md`](docs/repor
       reconstruye partiendo `file_url` por `/`, lo que acopla el servicio al
       formato de URL de `LocalDiskStorage`; un adapter S3 con URLs firmadas
       rompería el borrado.
-- [ ] **El E2E puede dar falso verde**: el check de LiveKit está marcado como no
-      crítico y no afecta al exit code.
+- [x] ~~**El E2E puede dar falso verde**~~ — `video_user1` y `video_user2` entran
+      en `critical_pass` desde el Bloque 0 del Prompt 8, y el check observa el
+      WebSocket contra el `:7880` en vez del DOM.
 - [x] ~~`ruff check` con 261 errores~~ — en verde desde `f721127`, con `ruff`
       acotado a `>=0.14,<0.15` para que no vuelva a romperse solo.
 - [x] ~~No existe `CLAUDE.md` en la raíz~~ — creado el 31/07/2026 con reglas
