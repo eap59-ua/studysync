@@ -6,7 +6,7 @@ export function useRoomPresence(roomId: string) {
   const [members, setMembers] = useState<User[]>([]);
   const [memberCount, setMemberCount] = useState(0);
 
-  const wsUrl = `${import.meta.env.VITE_WS_BASE_URL}/api/v1/ws/rooms/${roomId}`;
+  const wsUrl = `${import.meta.env.VITE_WS_BASE_URL}/ws/rooms/${roomId}`;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleMessage = useCallback((msg: any) => {
