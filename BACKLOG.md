@@ -46,6 +46,34 @@ Ver el detalle en [`docs/reports/00-inventario-retoma-2026-07-31.md`](docs/repor
       Es un espejo en China: desde los runners de GitHub Actions es lento y
       añade un punto de fallo. Regenerar el lock contra `registry.npmjs.org`
       con `npm config set registry https://registry.npmjs.org/`.
+- [ ] **El WebSocket no se entera de que el access token se ha renovado.**
+      `useWebSocket` mete el token en la query al conectar, así que un socket ya
+      abierto sigue con el viejo. El plan del Prompt 8 daba por hecho que el
+      backend lo cerraría con código 4401 y que la reconexión cogería el token
+      nuevo del storage. Comprobado el 31/07/2026, y **no es así**:
+
+      1. El token se valida **una sola vez**, en el handshake
+         (`rooms_ws.py:119`). El bucle de mensajes no lo revalida nunca, de modo
+         que un socket abierto sobrevive indefinidamente aunque su token caduque.
+         Hoy eso juega a favor, pero significa que una sesión revocada sigue
+         recibiendo eventos del room hasta que el socket se caiga por otra razón.
+      2. Cuando la reconexión sí lleva un token inválido, el navegador recibe
+         **1006**, no 4401: el backend llama a `close(4401)` antes de `accept()`,
+         así que se deniega el handshake y el código de aplicación no llega al
+         cliente. Medido abriendo un WebSocket a mano con un token basura.
+
+      Lo que sí funciona: `connect()` lee el token del storage en cada intento,
+      así que si el refresco por HTTP ya ocurrió, la reconexión entra con el
+      nuevo. El agujero es que `useWebSocket` se rinde tras 5 intentos (~31 s de
+      backoff) y se queda en `closed` para siempre; si en esa ventana no hubo
+      ninguna petición HTTP que dispare el refresco, la sala se queda muda sin
+      recuperación posible aunque el token se arregle después.
+
+      Arreglarlo: revalidar el token en el bucle del backend y cerrar con un
+      código que el cliente pueda leer (tras `accept()`), o mandar el token en
+      el primer mensaje en vez de en la query; y en el cliente, reintentar
+      cuando el storage cambie de token en lugar de rendirse.
+
 - [ ] **La calibración de reloj del Pomodoro es aproximada.** `useRoomPomodoro`
       mide el desfase con `started_at` de los mensajes recién emitidos
       (`phase_change`, y `pomodoro.state` salvo el primero de cada conexión).
