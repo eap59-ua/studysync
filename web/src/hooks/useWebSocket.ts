@@ -1,73 +1,106 @@
-import PartySocket from "partysocket";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { authStorage } from "../lib/storage";
 
 export type WSMessage = { type: string; [key: string]: unknown };
 export type WSStatus = "connecting" | "open" | "closed" | "reconnecting";
 
+const MAX_RETRIES = 5;
+const BASE_DELAY_MS = 1000;
+
+/**
+ * Hook genérico de WebSocket con reconexión automática (backoff exponencial).
+ *
+ * Usa el WebSocket nativo del navegador en lugar de PartySocket: PartySocket
+ * está diseñado para PartyKit (host + room) y no encaja con un endpoint
+ * arbitrario de FastAPI/Starlette.
+ */
 export function useWebSocket(url: string, onMessage: (msg: WSMessage) => void) {
-  const [status, setStatus] = useState<WSStatus>(
+  const [status, setStatus] = useState<WSStatus>(() =>
     authStorage.getAccessToken() ? "connecting" : "closed"
   );
-  const wsRef = useRef<PartySocket | null>(null);
 
+  const wsRef = useRef<WebSocket | null>(null);
+  const retriesRef = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const unmountedRef = useRef(false);
+  const onMessageRef = useRef(onMessage);
+  const connectRef = useRef<() => void>(() => {});
+
+  // Referencia estable a onMessage: evita recrear la conexión en cada render
+  // cuando el consumidor pasa una función inline.
   useEffect(() => {
+    onMessageRef.current = onMessage;
+  }, [onMessage]);
+
+  const connect = useCallback(() => {
     const token = authStorage.getAccessToken();
-    if (!token) {
-      return;
-    }
+    if (!token || unmountedRef.current) return;
 
-    // PartySocket expects a host, room, and can take query params.
-    // If we have an absolute URL like ws://localhost:8000/api/v1/ws/rooms/123
-    // Wait, the backend WebSocket URL might be generic. PartySocket is designed for PartyKit (host + room).
-    // Let's use the underlying WebSocket directly if PartySocket's API is too specific to PartyKit,
-    // or we can pass the full URL directly if partysocket allows.
-    // PartySocket allows `host: string` and `path: string`.
-    
-    // Actually, partysocket supports `PartySocket` but maybe it's simpler to use standard WebSocket if the backend is standard FastAPI WebSocket.
-    // However, the plan suggested:
-    // const ws = new PartySocket({ host: new URL(url).host, room: url, query: { token } });
-    // Let's check partysocket docs or just implement a robust native one.
-    // Let's try PartySocket first, but configure it to connect to the exact URL.
-    // PartySocket constructor takes `host`, `room`, `path`, `protocol`.
-    // The easiest way to connect to a custom path is to use `path`.
-    const parsedUrl = new URL(url);
-    const host = parsedUrl.host;
-    
-    // It's safer to just provide the host and path.
-    // Or just use the native WebSocket with a simple reconnect. Let's use PartySocket.
-    const ws = new PartySocket({
-      host: host,
-      room: "default", // PartySocket requires a room, even if ignored by our backend
-      path: parsedUrl.pathname.replace(/^\//, ""), // remove leading slash
-      query: { token },
-      // partysocket uses wss:// by default if host is not localhost.
-    });
-
+    const separator = url.includes("?") ? "&" : "?";
+    const ws = new WebSocket(`${url}${separator}token=${encodeURIComponent(token)}`);
     wsRef.current = ws;
 
-    ws.addEventListener("open", () => setStatus("open"));
-    ws.addEventListener("close", () => setStatus("closed"));
-    // PartySocket emits 'message' events like native WebSocket
-    ws.addEventListener("message", (e: MessageEvent) => {
+    ws.onopen = () => {
+      if (unmountedRef.current) {
+        ws.close();
+        return;
+      }
+      retriesRef.current = 0;
+      setStatus("open");
+    };
+
+    ws.onclose = () => {
+      if (unmountedRef.current) return;
+
+      if (retriesRef.current >= MAX_RETRIES) {
+        setStatus("closed");
+        return;
+      }
+
+      setStatus("reconnecting");
+      const delay = BASE_DELAY_MS * Math.pow(2, retriesRef.current);
+      retriesRef.current += 1;
+      timerRef.current = setTimeout(() => {
+        if (!unmountedRef.current) connectRef.current();
+      }, delay);
+    };
+
+    // onclose siempre se dispara después de onerror: la reconexión vive allí.
+    ws.onerror = () => {};
+
+    ws.onmessage = (e: MessageEvent) => {
       try {
-        const msg = JSON.parse(e.data);
-        onMessage(msg);
+        onMessageRef.current(JSON.parse(e.data));
       } catch {
         // Ignorar mensajes no JSON
       }
-    });
+    };
+  }, [url]);
+
+  // Indirección por ref para que onclose pueda reintentar sin referenciar
+  // `connect` dentro de su propia definición.
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
+
+  useEffect(() => {
+    unmountedRef.current = false;
+    retriesRef.current = 0;
+    connect();
 
     return () => {
-      ws.close();
+      unmountedRef.current = true;
+      if (timerRef.current) clearTimeout(timerRef.current);
+      wsRef.current?.close();
+      wsRef.current = null;
     };
-  }, [url, onMessage]);
+  }, [connect]);
 
-  const send = (msg: WSMessage) => {
-    if (wsRef.current && status === "open") {
+  const send = useCallback((msg: WSMessage) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(msg));
     }
-  };
+  }, []);
 
   return { status, send };
 }

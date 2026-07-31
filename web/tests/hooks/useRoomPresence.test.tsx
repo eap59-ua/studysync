@@ -1,27 +1,6 @@
 import { renderHook, act } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { useRoomPresence } from "@/hooks/useRoomPresence";
-
-// Mock partysocket module
-const mockAddEventListener = vi.fn();
-const mockRemoveEventListener = vi.fn();
-const mockClose = vi.fn();
-const mockSend = vi.fn();
-
-vi.mock("partysocket", () => {
-  return {
-    default: class MockPartySocket {
-      constructor() {
-        return {
-          addEventListener: mockAddEventListener,
-          removeEventListener: mockRemoveEventListener,
-          close: mockClose,
-          send: mockSend,
-        };
-      }
-    },
-  };
-});
 
 // Mock authStorage to always return a token
 vi.mock("@/lib/storage", () => ({
@@ -30,30 +9,62 @@ vi.mock("@/lib/storage", () => ({
   },
 }));
 
+// Mock WebSocket
+class MockWebSocket {
+  static instances: MockWebSocket[] = [];
+  url: string;
+  onopen: (() => void) | null = null;
+  onclose: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  onmessage: ((e: { data: string }) => void) | null = null;
+  readyState = 0; // CONNECTING
+  close = vi.fn();
+  send = vi.fn();
+
+  constructor(url: string) {
+    this.url = url;
+    MockWebSocket.instances.push(this);
+    // Simulate async open
+    setTimeout(() => {
+      this.readyState = 1; // OPEN
+      this.onopen?.();
+    }, 0);
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(global as any).WebSocket = MockWebSocket;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(MockWebSocket as any).OPEN = 1;
+
 describe("useRoomPresence", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
+    MockWebSocket.instances = [];
   });
 
-  it("initializes with empty members and connecting status", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("initializes with empty members", () => {
     const { result } = renderHook(() => useRoomPresence("room1"));
     expect(result.current.members).toEqual([]);
     expect(result.current.status).toBe("connecting");
   });
 
-  it("handles user_joined message", () => {
+  it("handles user_joined message", async () => {
     const { result } = renderHook(() => useRoomPresence("room1"));
 
-    // Find the message handler
-    const messageHandlerCall = mockAddEventListener.mock.calls.find(
-      (call) => call[0] === "message"
-    );
-    expect(messageHandlerCall).toBeDefined();
+    // Let the WS connect
+    act(() => { vi.runAllTimers(); });
 
-    const onMessage = messageHandlerCall[1];
+    const ws = MockWebSocket.instances[0];
+    expect(ws).toBeDefined();
 
     act(() => {
-      onMessage({
+      ws.onmessage?.({
         data: JSON.stringify({
           type: "user_joined",
           user: { id: "u1", display_name: "User 1" },
@@ -69,10 +80,12 @@ describe("useRoomPresence", () => {
   it("handles user_left message", () => {
     const { result } = renderHook(() => useRoomPresence("room1"));
 
-    const onMessage = mockAddEventListener.mock.calls.find((call) => call[0] === "message")[1];
+    act(() => { vi.runAllTimers(); });
+    const ws = MockWebSocket.instances[0];
 
+    // Join first
     act(() => {
-      onMessage({
+      ws.onmessage?.({
         data: JSON.stringify({
           type: "user_joined",
           user: { id: "u1", display_name: "User 1" },
@@ -80,11 +93,11 @@ describe("useRoomPresence", () => {
         }),
       });
     });
-
     expect(result.current.members).toHaveLength(1);
 
+    // Then leave
     act(() => {
-      onMessage({
+      ws.onmessage?.({
         data: JSON.stringify({
           type: "user_left",
           user: { id: "u1" },
@@ -100,11 +113,12 @@ describe("useRoomPresence", () => {
   it("ignores invalid JSON without crashing", () => {
     renderHook(() => useRoomPresence("room1"));
 
-    const onMessage = mockAddEventListener.mock.calls.find((call) => call[0] === "message")[1];
+    act(() => { vi.runAllTimers(); });
+    const ws = MockWebSocket.instances[0];
 
     expect(() => {
       act(() => {
-        onMessage({ data: "invalid-json" });
+        ws.onmessage?.({ data: "invalid-json" });
       });
     }).not.toThrow();
   });
