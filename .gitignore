@@ -69,3 +69,10 @@ coverage/
 *.tmp
 uploads/
 backend/uploads/
+
+# ========================
+# Artefactos de scripts E2E
+# ========================
+*.db
+e2e_*.txt
+docs/evidence/**/error_*.png
