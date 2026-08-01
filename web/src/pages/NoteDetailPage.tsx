@@ -102,7 +102,9 @@ export function NoteDetailPage() {
             <span>
               {reviews_count === 0
                 ? "sin valoraciones"
-                : `${rating_avg.toFixed(1)} · ${reviews_count} reseñas`}
+                : `${rating_avg.toFixed(1)} · ${reviews_count} ${
+                    reviews_count === 1 ? "reseña" : "reseñas"
+                  }`}
             </span>
           </span>
         </div>

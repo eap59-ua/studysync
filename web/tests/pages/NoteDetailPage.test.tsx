@@ -104,6 +104,28 @@ describe("NoteDetailPage", () => {
     expect(screen.getByText("Muy útil")).toBeInTheDocument();
   });
 
+  it("concuerda el singular cuando solo hay una reseña", async () => {
+    vi.mocked(notesService.getById).mockResolvedValue(
+      makeDetail({
+        reviews: [
+          {
+            id: "rev-1",
+            reviewer_id: "reader-9",
+            rating: 5,
+            comment: "Impecable",
+            reviewer: { id: "reader-9", display_name: "User Three" },
+          },
+        ],
+        reviews_count: 1,
+        rating_avg: 5,
+      })
+    );
+
+    renderPage();
+
+    expect(await screen.findByText("5.0 · 1 reseña")).toBeInTheDocument();
+  });
+
   it("ofrece la descarga apuntando al fichero", async () => {
     renderPage();
 

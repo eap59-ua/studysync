@@ -34,3 +34,22 @@
   outline-offset: 2px;
   border-radius: 2px;
 }
+
+/**
+ * La barra de controles de LiveKit no se adapta al ancho. Al pasar el vídeo de
+ * 3/4 a 2/4 del grid para hacer sitio al Pomodoro, la columna se quedó en unos
+ * 596 px y la barra, centrada y sin envolver, se recortaba por los dos extremos:
+ * el botón de micrófono quedaba cortado.
+ *
+ * Se descartó `flex-wrap: wrap` porque LiveKit coloca la barra en una fila de
+ * altura fija y la segunda línea se salía del contenedor, dejando Chat y Leave
+ * inalcanzables. Con desplazamiento horizontal no se pierde ningún botón.
+ */
+/* Se cualifica con [data-lk-theme] para ganar en especificidad: la hoja de
+   LiveKit se inyecta después que index.css y con el mismo peso su
+   `justify-content: center` se imponía. Centrado dentro de un contenedor
+   desplazable, además, el inicio queda inalcanzable. */
+[data-lk-theme] .lk-control-bar {
+  justify-content: flex-start;
+  overflow-x: auto;
+}

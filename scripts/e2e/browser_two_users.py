@@ -91,7 +91,10 @@ async def check_video_connected(page, label, lkws, results):
         return False
 
     tiles = await page.locator(LK_TILE).count()
-    print(f"  [OK] {label}: LiveKit conectado ({tiles} tile(s), {lkws['url']})")
+    # Se recorta la query: lleva el access token y el join_request completos,
+    # y un JWT no tiene por qué acabar en la salida de consola ni en un log de CI.
+    endpoint = lkws["url"].split("?")[0]
+    print(f"  [OK] {label}: LiveKit conectado ({tiles} tile(s), {endpoint})")
     return True
 
 
