@@ -36,12 +36,16 @@ app = FastAPI(
 )
 
 # ── CORS ──────────────────────────────────────────────────────
+# Lista explícita, sin comodines. `allow_credentials=True` con `allow_origins`
+# abierto es una combinación que el propio navegador rechaza, y los métodos y
+# cabeceras se enumeran para no conceder más de lo que la API usa: hoy solo
+# GET, POST y DELETE, y ninguna cabecera fuera de Authorization y Content-Type.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 # ── Routers ───────────────────────────────────────────────────
