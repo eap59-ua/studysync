@@ -46,6 +46,13 @@ Ver el detalle en [`docs/reports/00-inventario-retoma-2026-07-31.md`](docs/repor
       Es un espejo en China: desde los runners de GitHub Actions es lento y
       añade un punto de fallo. Regenerar el lock contra `registry.npmjs.org`
       con `npm config set registry https://registry.npmjs.org/`.
+- [ ] **`browser_two_users.py` sobrescribe la evidencia del Prompt 7.** El
+      directorio de capturas está fijo en `docs/evidence/prompt-07/`, así que
+      cada ejecución de la puerta de calidad ensucia el árbol y mete en esas
+      imágenes features posteriores (el panel del Pomodoro, por ejemplo), que no
+      es lo que describe ese informe. Debería salir a un directorio neutro o
+      recibirlo por parámetro.
+
 - [ ] **El WebSocket no se entera de que el access token se ha renovado.**
       `useWebSocket` mete el token en la query al conectar, así que un socket ya
       abierto sigue con el viejo. El plan del Prompt 8 daba por hecho que el
