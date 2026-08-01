@@ -8,6 +8,7 @@ import { NotFoundPage } from "../pages/NotFoundPage";
 import { RoomsListPage } from "../pages/RoomsListPage";
 import { RoomDetailPage } from "../pages/RoomDetailPage";
 import { NotesListPage } from "../pages/NotesListPage";
+import { NoteDetailPage } from "../pages/NoteDetailPage";
 
 export const routes: RouteObject[] = [
   {
@@ -55,6 +56,14 @@ export const routes: RouteObject[] = [
     element: (
       <ProtectedRoute>
         <NotesListPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/notes/:id",
+    element: (
+      <ProtectedRoute>
+        <NoteDetailPage />
       </ProtectedRoute>
     ),
   },
