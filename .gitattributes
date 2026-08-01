@@ -1,0 +1,19 @@
+# Normalizar finales de línea: en el repo siempre LF.
+# Sin esto, los editores en Windows reescriben ficheros con CRLF y git los
+# muestra como modificados enteros aunque no haya cambiado una sola línea.
+* text=auto eol=lf
+
+# Ficheros que deben conservar CRLF en el working tree de Windows
+*.bat    text eol=crlf
+*.ps1    text eol=crlf
+
+# Binarios: git no los toca
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.webp   binary
+*.pdf    binary
+*.ico    binary
+*.woff   binary
+*.woff2  binary
+*.db     binary

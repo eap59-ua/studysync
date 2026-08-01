@@ -107,7 +107,6 @@ class SqlAlchemyNoteRepository(NoteRepository):
         skip: int = 0,
         limit: int = 20,
     ) -> tuple[list[NoteWithStats], int]:
-
         # Subquery for ratings
         reviews_sq = (
             select(
