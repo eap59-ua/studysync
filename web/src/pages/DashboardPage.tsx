@@ -24,9 +24,17 @@ export function DashboardPage() {
             Ver salas de estudio
           </Button>
           
-          <Button 
-            variant="secondary" 
-            className="w-full" 
+          <Button
+            variant="secondary"
+            className="w-full"
+            onClick={() => navigate("/notes")}
+          >
+            Explorar apuntes
+          </Button>
+
+          <Button
+            variant="secondary"
+            className="w-full"
             onClick={() => logout()}
           >
             Cerrar sesión
