@@ -31,7 +31,7 @@ ruff format app/ tests/
 cd web
 npm ci
 npm run dev                            # :5173
-npm run test                           # 24 tests (vitest)
+npm run test                           # 111 tests (vitest)
 npm run lint                           # eslint
 npm run typecheck                      # tsc -b --noEmit
 npm run build
@@ -80,7 +80,7 @@ Vite + React 19 + TypeScript + Tailwind 4 · `mobile/` existe pero está sin arr
 
 ---
 
-## Estado actual (31 julio 2026)
+## Estado actual (2 agosto 2026)
 
 Prompts 0-7 completados. El detalle de cada fase está en `docs/plan/`.
 
@@ -88,15 +88,16 @@ Prompts 0-7 completados. El detalle de cada fase está en `docs/plan/`.
 |---|---|
 | 0-5 | Backend completo: auth JWT, rooms + WS, Pomodoro, LiveKit, notas con reseñas |
 | 6-7 | Frontend: auth, rooms UI, presencia por WebSocket, grid de vídeo |
+| 8 | Pomodoro UI sincronizado, Notes UI, refresco de token, accesibilidad |
 
-**Siguiente:** `docs/plan/08-pomodoro-notes-ui.md` — Pomodoro UI, Notes UI, refresh token, polish.
-Empieza por el bloque 0, que es un bloqueo real.
+**Siguiente:** `docs/plan/09-deploy.md` — desplegar a producción. Después vendrá el Prompt 10,
+el rediseño de UX/UI.
 
 Lecturas obligatorias antes de tocar nada:
 
-- `docs/plan/08-pomodoro-notes-ui.md` — el trabajo en curso
+- `docs/plan/09-deploy.md` — el trabajo en curso
 - `BACKLOG.md` — deuda técnica conocida y limitaciones asumidas
-- `docs/reports/07-e2e-report.md` — qué falla hoy y por qué
+- `docs/reports/08-e2e-report.md` — qué falla hoy y por qué
 - `docs/adr/001-architecture.md` — por qué el stack es este
 
 ---
