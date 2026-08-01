@@ -1,1 +1,36 @@
 @import "tailwindcss";
+
+/**
+ * Paleta del portfolio. Un solo sitio donde tocarlos: nada de hex sueltos por
+ * los componentes.
+ */
+:root {
+  --color-primary: #4f46e5;
+  --color-secondary: #7c3aed;
+  --color-accent: #ec4899;
+
+  /**
+   * El acento da 3.53:1 sobre blanco: cumple AA para texto grande (≥3:1) pero
+   * no para texto normal (≥4.5:1). Para textos pequeños se usa esta variante,
+   * que sube a 4.60:1 sin desentonar.
+   */
+  --color-accent-text: #db2777;
+}
+
+/**
+ * Foco visible en todo lo interactivo.
+ *
+ * Los componentes traían `focus:outline-none focus:ring-2`, pero con Tailwind 4
+ * el anillo no llega a componerse (`--tw-ring-shadow` se queda en `0 0 #0000`)
+ * y el `outline-none` sí surte efecto: el resultado era que un botón enfocado
+ * no mostraba absolutamente nada y con teclado no se sabía dónde estabas.
+ *
+ * Se resuelve con outline estándar, que no depende de la versión de Tailwind.
+ * Va fuera de `@layer` a propósito: así gana a las utilidades pase lo que pase.
+ * `:focus-visible` y no `:focus` para no dibujarlo en los clics de ratón.
+ */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}

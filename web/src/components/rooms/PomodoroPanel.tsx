@@ -10,15 +10,19 @@ interface PomodoroPanelProps {
   pomodorosCompleted?: number;
 }
 
-// Paleta del portfolio. Agrupados aquí a propósito: el Bloque 4 los mueve a
-// variables CSS y así solo hay un sitio que tocar.
-const PHASE_COLORS: Record<PomodoroPhase, string> = {
-  focus: "#4F46E5",
-  short_break: "#7C3AED",
-  long_break: "#EC4899",
+/**
+ * Dos tonos por fase a propósito. El acento rosa cumple AA sobre blanco para
+ * texto grande (3.53:1 ≥ 3) pero no para texto pequeño (< 4.5), así que la
+ * cuenta atrás usa `display` y la etiqueta de fase `text`. En las otras dos
+ * fases coinciden porque ya pasan de sobra.
+ */
+const PHASE_COLORS: Record<PomodoroPhase, { display: string; text: string }> = {
+  focus: { display: "var(--color-primary)", text: "var(--color-primary)" },
+  short_break: { display: "var(--color-secondary)", text: "var(--color-secondary)" },
+  long_break: { display: "var(--color-accent)", text: "var(--color-accent-text)" },
 };
 
-const IDLE_COLOR = "#9CA3AF";
+const IDLE_COLORS = { display: "#9CA3AF", text: "#6B7280" };
 
 function formatMmSs(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);
@@ -33,26 +37,34 @@ export function PomodoroPanel({
 }: PomodoroPanelProps) {
   const { state, secondsRemaining, isRunning, error, start, stop } = pomodoro;
 
-  const color = state ? PHASE_COLORS[state.phase] : IDLE_COLOR;
+  const colors = state ? PHASE_COLORS[state.phase] : IDLE_COLORS;
   const phaseLabel = state ? PHASE_LABELS[state.phase] : "Sin pomodoro";
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col items-center gap-4">
       <h3 className="text-sm font-medium text-gray-900 self-start">Pomodoro</h3>
 
-      <p className="text-sm font-medium" style={{ color }}>
+      <p className="text-sm font-medium" style={{ color: colors.text }}>
         {phaseLabel}
       </p>
 
-      {/* `tabular-nums` evita que los dígitos bailen de ancho en cada tick */}
+      {/* `tabular-nums` evita que los dígitos bailen de ancho en cada tick.
+          aria-live apagado: con "polite" el lector cantaría cada segundo. */}
       <p
         role="timer"
-        aria-live="polite"
+        aria-live="off"
         aria-label={`Tiempo restante de ${phaseLabel.toLowerCase()}`}
         className="text-5xl font-bold tabular-nums tracking-tight"
-        style={{ color }}
+        style={{ color: colors.display }}
       >
         {formatMmSs(secondsRemaining)}
+      </p>
+
+      {/* Lo que sí merece anunciarse: cambia una vez por fase, no por tick */}
+      <p role="status" className="sr-only">
+        {isRunning
+          ? `${phaseLabel}, ${Math.round((state?.duration_seconds ?? 0) / 60)} minutos`
+          : "Pomodoro detenido"}
       </p>
 
       {/* Progreso del ciclo: 8 fases, la actual resaltada */}
@@ -65,7 +77,7 @@ export function PomodoroPanel({
               data-testid="cycle-dot"
               data-current={String(isCurrent)}
               className={`h-2 rounded-full transition-all ${isCurrent ? "w-4" : "w-2"}`}
-              style={{ backgroundColor: isCurrent ? color : "#E5E7EB" }}
+              style={{ backgroundColor: isCurrent ? colors.display : "#E5E7EB" }}
             />
           );
         })}

@@ -158,7 +158,10 @@ describe("PomodoroPanel", () => {
     expect(screen.getByTestId("pomodoros-completed")).toHaveTextContent("7");
   });
 
-  it("anuncia la cuenta atrás a lectores de pantalla sin ser intrusiva", () => {
+  it("no hace que el lector de pantalla cante cada segundo", () => {
+    // aria-live="polite" sobre un número que cambia cada segundo produce un
+    // anuncio por tick y deja la pantalla inservible con lector. El role=timer
+    // ya identifica el elemento para quien quiera consultarlo.
     const pomodoro = makePomodoro({
       state: makeState(),
       secondsRemaining: 100,
@@ -167,6 +170,19 @@ describe("PomodoroPanel", () => {
 
     render(<PomodoroPanel pomodoro={pomodoro} isOwner={false} />);
 
-    expect(screen.getByRole("timer")).toHaveAttribute("aria-live", "polite");
+    expect(screen.getByRole("timer")).toHaveAttribute("aria-live", "off");
+  });
+
+  it("anuncia el cambio de fase en una región aparte", () => {
+    // Esto sí cambia una vez por fase, que es lo que merece anunciarse
+    const pomodoro = makePomodoro({
+      state: makeState({ phase: "short_break", phase_index: 1, duration_seconds: 300 }),
+      secondsRemaining: 300,
+      isRunning: true,
+    });
+
+    render(<PomodoroPanel pomodoro={pomodoro} isOwner={false} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent(/Descanso corto/i);
   });
 });

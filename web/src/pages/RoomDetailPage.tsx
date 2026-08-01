@@ -74,9 +74,16 @@ export function RoomDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]" role="status">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-        <span className="sr-only">Cargando...</span>
+      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8" role="status">
+        <div className="h-9 w-72 max-w-full rounded bg-gray-100 animate-pulse" />
+        <div className="mt-3 h-5 w-40 rounded bg-gray-100 animate-pulse" />
+        {/* Misma retícula que la sala ya cargada, para que no dé un salto */}
+        <div className="mt-8 grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="lg:order-2 lg:col-span-1 h-80 rounded-xl bg-gray-100 animate-pulse" />
+          <div className="lg:order-1 lg:col-span-2 h-80 rounded-xl bg-gray-100 animate-pulse" />
+          <div className="lg:order-3 lg:col-span-1 h-48 rounded-xl bg-gray-100 animate-pulse" />
+        </div>
+        <span className="sr-only">Cargando sala...</span>
       </div>
     );
   }

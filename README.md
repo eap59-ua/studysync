@@ -15,7 +15,7 @@
 | 🎥 **Study Rooms** | Virtual rooms with video/audio via LiveKit |
 | 🍅 **Synchronized Pomodoro** | Server-authoritative timer — everyone in the room stays in sync |
 | 📝 **Notes Exchange** | Upload, discover and peer-review study notes |
-| 🤖 **Smart Recommendations** | Rule-based study suggestions based on your history |
+| 🤖 **Smart Recommendations** | *Planned* — rule-based study suggestions based on your history |
 
 ## 🏗️ Architecture
 
@@ -67,8 +67,10 @@ cd studysync
 # 2. Copy env file
 cp backend/.env.example backend/.env
 
-# 3. Start infrastructure (Postgres + Redis + Backend)
-docker compose up -d
+# 3. Start infrastructure (Postgres + Redis + LiveKit)
+#    Ojo: `docker compose up -d` a secas levanta también el servicio `backend`,
+#    que publica el :8000 y choca si luego arrancas uvicorn en local.
+docker compose up -d postgres redis livekit
 
 # 4. Run migrations
 make migrate
@@ -95,12 +97,22 @@ make lint           # Lint all code
 | Phase | Weeks | Status | Description |
 |-------|-------|--------|-------------|
 | 0 | 1 | 🟢 Done | Scaffolding & infrastructure |
-| 1 | 1-2 | ⬜ | Auth JWT + CI/CD |
-| 2 | 3-4 | ⬜ | Rooms CRUD + WebSocket presence |
-| 3 | 5-6 | ⬜ | **Synchronized Pomodoro** (core feature) |
-| 4 | 7-8 | ⬜ | LiveKit video/audio integration |
-| 5 | 9-10 | ⬜ | Notes exchange + peer reviews |
+| 1 | 1-2 | 🟢 Done | Auth JWT + CI/CD |
+| 2 | 3-4 | 🟢 Done | Rooms CRUD + WebSocket presence |
+| 3 | 5-6 | 🟢 Done | **Synchronized Pomodoro** (core feature) |
+| 4 | 7-8 | 🟢 Done | LiveKit video/audio integration |
+| 5 | 9-10 | 🟢 Done | Notes exchange + peer reviews |
 | 6 | 11-12 | ⬜ | Recommendations + production deploy |
+
+El frontend va por su propia serie de fases, documentada en `docs/plan/`:
+
+| Fase | Estado | Alcance |
+|---|---|---|
+| 6-7 | 🟢 Done | Auth, rooms UI, presencia por WebSocket, grid de vídeo |
+| 8 | 🟢 Done | Pomodoro UI sincronizado, refresco de token, apuntes con reseñas, accesibilidad |
+
+Informes E2E con evidencia en `docs/reports/`. Deuda técnica conocida en
+[`BACKLOG.md`](BACKLOG.md).
 
 ## 👤 Author
 

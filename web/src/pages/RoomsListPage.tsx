@@ -34,10 +34,18 @@ export function RoomsListPage() {
   }, []);
 
   if (loading) {
+    // Skeleton con la forma del contenido en vez de un spinner centrado: la
+    // misma espera se percibe más corta cuando ya se intuye lo que va a venir.
     return (
-      <div className="flex items-center justify-center min-h-[60vh]" role="status">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-        <span className="sr-only">Cargando...</span>
+      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8" role="status">
+        <div className="h-9 w-64 rounded bg-gray-100 animate-pulse" />
+        <div className="mt-3 h-4 w-96 max-w-full rounded bg-gray-100 animate-pulse" />
+        <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }, (_, i) => (
+            <div key={i} className="h-40 rounded-xl bg-gray-100 animate-pulse" />
+          ))}
+        </div>
+        <span className="sr-only">Cargando salas...</span>
       </div>
     );
   }
