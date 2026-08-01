@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { notesService } from "../services/notes.service";
 import { NoteCard } from "../components/notes/NoteCard";
+import { UploadNoteDialog } from "../components/notes/UploadNoteDialog";
 import { Button } from "../components/ui/Button";
 import { SORT_LABELS, type NotesSort, type PaginatedNotes } from "../types/notes";
 
@@ -15,6 +16,9 @@ export function NotesListPage() {
 
   const [data, setData] = useState<PaginatedNotes | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isUploadOpen, setUploadOpen] = useState(false);
+  /** Cambia al subir un apunte para forzar la recarga del listado. */
+  const [reloadToken, setReloadToken] = useState(0);
 
   // Sin esto se dispararía una petición por tecla pulsada
   useEffect(() => {
@@ -57,7 +61,7 @@ export function NotesListPage() {
     return () => {
       cancelled = true;
     };
-  }, [debouncedSubject, sort, page]);
+  }, [debouncedSubject, sort, page, reloadToken]);
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
   // No hace falta un estado `loading`: mientras no haya datos ni error, se está
@@ -68,12 +72,21 @@ export function NotesListPage() {
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Apuntes</h1>
-        <p className="mt-2 text-gray-600">
-          Material compartido por la comunidad, ordenado como prefieras.
-        </p>
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Apuntes</h1>
+          <p className="mt-2 text-gray-600">
+            Material compartido por la comunidad, ordenado como prefieras.
+          </p>
+        </div>
+        <Button onClick={() => setUploadOpen(true)}>Subir apunte</Button>
       </div>
+
+      <UploadNoteDialog
+        isOpen={isUploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onUploaded={() => setReloadToken((t) => t + 1)}
+      />
 
       <div className="mb-6 flex flex-col sm:flex-row gap-4">
         <div className="flex-1">

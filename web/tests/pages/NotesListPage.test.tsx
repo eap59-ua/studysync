@@ -151,6 +151,51 @@ describe("NotesListPage", () => {
     });
   });
 
+  it("abre el diálogo de subida desde el listado", async () => {
+    renderPage();
+    await screen.findByText("Integrales por partes");
+
+    await userEvent.click(screen.getByRole("button", { name: /Subir apunte/i }));
+
+    expect(screen.getByLabelText(/Fichero/i)).toBeInTheDocument();
+  });
+
+  it("recarga el listado tras subir un apunte", async () => {
+    vi.mocked(notesService.upload).mockResolvedValue({
+      id: "note-2",
+      owner_id: "u1",
+      room_id: null,
+      subject: "Física",
+      title: "Tema 1",
+      description: "",
+      file_url: "http://localhost:8000/uploads/b.pdf",
+      file_type: "application/pdf",
+      file_size_bytes: 100,
+      original_filename: "b.pdf",
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Integrales por partes");
+    const callsBefore = vi.mocked(notesService.list).mock.calls.length;
+
+    await user.click(screen.getByRole("button", { name: /Subir apunte/i }));
+    await user.type(screen.getByLabelText(/Asignatura del apunte/i), "Física");
+    await user.type(screen.getByLabelText(/Título/i), "Tema 1");
+    await user.upload(
+      screen.getByLabelText(/Fichero/i),
+      new File(["x"], "b.pdf", { type: "application/pdf" })
+    );
+    await user.click(screen.getByRole("button", { name: /^Subir$/i }));
+
+    // Sin recarga, el apunte recién subido no aparecería hasta refrescar a mano
+    await waitFor(() => {
+      expect(vi.mocked(notesService.list).mock.calls.length).toBeGreaterThan(
+        callsBefore
+      );
+    });
+  });
+
   it("avisa si el listado falla en vez de quedarse en blanco", async () => {
     vi.mocked(notesService.list).mockRejectedValue(new Error("network"));
 
