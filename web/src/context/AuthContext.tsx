@@ -6,12 +6,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { AuthState, User } from "../types/auth";
+import type { AuthState, LoginResponse, User } from "../types/auth";
 import { authStorage } from "../lib/storage";
 import { authService } from "../services/auth.service";
 
 interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<void>;
+  loginAsGuest: () => Promise<void>;
   register: (
     email: string,
     password: string,
@@ -63,9 +64,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("auth:unauthenticated", handler);
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const response = await authService.login({ email, password });
-
+  // Compartido por el login normal y el de invitado: la única diferencia entre
+  // ambos es cómo se consigue la respuesta, no qué se hace con ella.
+  const startSession = useCallback((response: LoginResponse) => {
     const user: User = {
       id: response.user.id,
       email: response.user.email,
@@ -90,6 +91,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const login = useCallback(
+    async (email: string, password: string) => {
+      startSession(await authService.login({ email, password }));
+    },
+    [startSession],
+  );
+
+  const loginAsGuest = useCallback(async () => {
+    startSession(await authService.demoLogin());
+  }, [startSession]);
+
   const register = useCallback(
     async (email: string, password: string, displayName: string) => {
       await authService.register({
@@ -109,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ ...state, login, register, logout }}>
+    <AuthContext.Provider value={{ ...state, login, loginAsGuest, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

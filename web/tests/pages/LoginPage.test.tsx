@@ -57,4 +57,51 @@ describe("LoginPage", () => {
       expect(loginFn).toHaveBeenCalledWith("test@example.com", "password123");
     });
   });
+
+  describe("acceso de invitado", () => {
+    it("ofrece entrar sin registrarse", () => {
+      // Es la razón de ser del despliegue: quien llega desde un CV no va a
+      // crearse una cuenta para mirar
+      renderLoginPage();
+
+      expect(
+        screen.getByRole("button", { name: /entrar como invitado/i })
+      ).toBeInTheDocument();
+    });
+
+    it("entra como invitado al pulsarlo", async () => {
+      const loginAsGuest = vi.fn().mockResolvedValue(undefined);
+      const user = userEvent.setup();
+      renderLoginPage({ loginAsGuest });
+
+      await user.click(screen.getByRole("button", { name: /entrar como invitado/i }));
+
+      await waitFor(() => expect(loginAsGuest).toHaveBeenCalledTimes(1));
+    });
+
+    it("avisa si la demo no está disponible", async () => {
+      const loginAsGuest = vi.fn().mockRejectedValue({
+        response: { status: 404, data: { detail: "Not found" } },
+      });
+      const user = userEvent.setup();
+      renderLoginPage({ loginAsGuest });
+
+      await user.click(screen.getByRole("button", { name: /entrar como invitado/i }));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(/demo no está disponible/i);
+    });
+
+    it("se puede ocultar en instalaciones que no son la demo pública", () => {
+      // Por defecto se muestra: olvidarse de la variable no debe dejar la demo
+      // sin su puerta de entrada
+      vi.stubEnv("VITE_DEMO_MODE", "false");
+      renderLoginPage();
+
+      expect(
+        screen.queryByRole("button", { name: /entrar como invitado/i })
+      ).not.toBeInTheDocument();
+
+      vi.unstubAllEnvs();
+    });
+  });
 });

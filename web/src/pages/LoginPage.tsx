@@ -8,10 +8,15 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 
 export function LoginPage() {
-  const { login } = useAuth();
+  const { login, loginAsGuest } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [serverError, setServerError] = useState("");
+  const [isEnteringAsGuest, setEnteringAsGuest] = useState(false);
+
+  // Se muestra salvo que se apague explícitamente: olvidarse de la variable no
+  // debe dejar la demo pública sin su puerta de entrada, que es su razón de ser.
+  const showGuestAccess = import.meta.env.VITE_DEMO_MODE !== "false";
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/dashboard";
 
@@ -35,6 +40,29 @@ export function LoginPage() {
       } else {
         setServerError("Error de conexión con el servidor");
       }
+    }
+  };
+
+  const handleGuestAccess = async () => {
+    setServerError("");
+    setEnteringAsGuest(true);
+    try {
+      await loginAsGuest();
+      navigate("/dashboard", { replace: true });
+    } catch (err: unknown) {
+      // El 404 es el caso esperado cuando el backend no tiene el modo demo
+      // activado; conviene decirlo distinto de un fallo de red.
+      const status =
+        err && typeof err === "object" && "response" in err
+          ? (err as { response?: { status?: number } }).response?.status
+          : undefined;
+      setServerError(
+        status === 404
+          ? "La demo no está disponible en este servidor."
+          : "No se pudo entrar como invitado. Inténtalo de nuevo.",
+      );
+    } finally {
+      setEnteringAsGuest(false);
     }
   };
 
@@ -73,6 +101,34 @@ export function LoginPage() {
             Iniciar sesión
           </Button>
         </form>
+
+        {showGuestAccess && (
+          <div>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                <div className="w-full border-t border-gray-200" />
+              </div>
+              <div className="relative flex justify-center">
+                <span className="bg-white px-3 text-xs uppercase tracking-wide text-gray-400">
+                  o
+                </span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="secondary"
+              className="mt-4 w-full"
+              isLoading={isEnteringAsGuest}
+              onClick={handleGuestAccess}
+            >
+              Entrar como invitado
+            </Button>
+            <p className="mt-2 text-center text-xs text-gray-500">
+              Sin registro. Entras en una sala con gente y apuntes de ejemplo.
+            </p>
+          </div>
+        )}
 
         <p className="text-center text-sm text-gray-600">
           ¿No tienes cuenta?{" "}

@@ -33,6 +33,16 @@ export const authService = {
     return data;
   },
 
+  /**
+   * Entra con una cuenta de demostración sin pedir credenciales. El backend
+   * reparte entre varias cuentas para que dos visitantes simultáneos sean
+   * personas distintas en la sala. Devuelve 404 si el modo demo está apagado.
+   */
+  demoLogin: async (): Promise<LoginResponse> => {
+    const { data } = await http.post<LoginResponse>("/api/v1/auth/demo");
+    return data;
+  },
+
   refresh: async (refreshToken: string): Promise<RefreshResponse> => {
     const { data } = await http.post<RefreshResponse>("/api/v1/auth/refresh", {
       refresh_token: refreshToken,

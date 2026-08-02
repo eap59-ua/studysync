@@ -54,6 +54,14 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
     uploads_dir: str = "./uploads"
 
+    # ── Demo ──────────────────────────────────────────────────
+    # Desactivado por defecto: el endpoint de invitado emite sesiones sin pedir
+    # credenciales, así que solo debe existir donde se quiere una demo pública.
+    demo_mode_enabled: bool = False
+    # Asientos del pool. Dos visitantes con la misma cuenta se cuentan como una
+    # sola persona en la presencia y la demo del Pomodoro pierde la gracia.
+    demo_seats: int = 4
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [

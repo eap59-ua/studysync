@@ -48,6 +48,15 @@ class AuthService:
         if not user or not password_hash.verify(password, user.hashed_password):
             raise ValueError("Invalid email or password")
 
+        return self.issue_session(user)
+
+    def issue_session(self, user: User) -> dict:
+        """Emite el par de tokens para un usuario ya autenticado.
+
+        Separado de `login` porque el acceso de invitado necesita emitir sesión
+        sin contraseña. Quien llame a esto es responsable de haber comprobado
+        que puede hacerlo: aquí no se valida nada.
+        """
         access_token = self._create_token(
             data={"sub": str(user.id)},
             expires_delta=timedelta(minutes=self._settings.access_token_expire_minutes),
