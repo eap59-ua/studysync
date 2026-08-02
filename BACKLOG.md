@@ -46,6 +46,21 @@ Ver el detalle en [`docs/reports/00-inventario-retoma-2026-07-31.md`](docs/repor
       Es un espejo en China: desde los runners de GitHub Actions es lento y
       añade un punto de fallo. Regenerar el lock contra `registry.npmjs.org`
       con `npm config set registry https://registry.npmjs.org/`.
+- [ ] **Solo 1 de cada 4 invitados puede arrancar el Pomodoro de la demo.**
+      La cadena es determinista: `seed_demo.py` crea la sala con
+      `owner_id=users[0]`, `RoomDetailPage` solo enseña los controles si
+      `user.id === roomDetail.owner_id`, y `PomodoroService.start` rechaza a
+      quien no sea el owner. Como el endpoint de invitado reparte asiento al
+      azar entre 4, tres de cada cuatro visitantes ven "solo el owner puede
+      arrancarlo" justo en la funcionalidad que la demo existe para enseñar.
+
+      No se ha tocado la autorización porque cambiarla es una decisión de
+      producto, no de despliegue. Las dos salidas son: implementar el
+      *Cooperative Pomodoro start* que ya está en «Future Improvements» —
+      cualquier miembro puede arrancarlo—, o dejar el Pomodoro de la demo
+      corriendo de forma permanente con un proceso aparte. La primera es la
+      buena y además cierra deuda ya identificada.
+
 - [ ] **`browser_two_users.py` sobrescribe la evidencia del Prompt 7.** El
       directorio de capturas está fijo en `docs/evidence/prompt-07/`, así que
       cada ejecución de la puerta de calidad ensucia el árbol y mete en esas
